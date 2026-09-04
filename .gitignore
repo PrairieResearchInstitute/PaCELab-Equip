@@ -30,3 +30,13 @@ Trust Tokens*
 *.log
 Thumbs.db
 .DS_Store
+
+# Documents - only manuals and readmes belong in the repo
+*.docx
+*.doc
+*.pptx
+*.ppt
+!*README*
+!*readme*
+!*Manual*
+!*manual*

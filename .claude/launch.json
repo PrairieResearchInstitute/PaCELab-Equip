@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "lab-equipment",
+      "runtimeExecutable": "${env:LOCALAPPDATA}/php83/php.exe",
+      "runtimeArgs": ["-S", "localhost:8080", "-t", "."],
+      "port": 8080
+    }
+  ]
+}

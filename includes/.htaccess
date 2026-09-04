@@ -1,0 +1,8 @@
+# These files define functions and are harmless to request directly, but there
+# is no reason for the web to reach them at all.
+Require all denied
+
+<IfModule !mod_authz_core.c>
+  Order allow,deny
+  Deny from all
+</IfModule>

@@ -1,0 +1,14 @@
+# Deny web access to everything in this directory.
+#
+# The SQLite database lives here. On a host that allows storage outside the web
+# root, move the file and point config.php at it instead (see the README); this
+# file is the fallback for hosts that do not.
+#
+# Apache 2.4 and later:
+Require all denied
+
+# Apache 2.2 and earlier:
+<IfModule !mod_authz_core.c>
+  Order allow,deny
+  Deny from all
+</IfModule>

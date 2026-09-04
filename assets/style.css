@@ -1,0 +1,968 @@
+/* ==========================================================================
+   Shared Laboratory Equipment System — the whole appearance of the application.
+
+   Every colour, size, and spacing decision lives in this file. No PHP file
+   contains a style attribute except where JavaScript positions a calendar
+   block, so a full visual redesign never touches application logic.
+
+   The variables below drive everything; changing them restyles the site.
+   ========================================================================== */
+
+:root {
+  /* The palette PRI Facilities uses, under its own names, so a web person
+     maintaining both systems meets the same tokens in both stylesheets. */
+  --ink:               #1a1a1a;
+  --paper:             #f5f4f1;
+  --panel:             #ffffff;
+  --line:              #d8d5cf;
+  --accent:            #13294b;  /* Illinois blue */
+  --accent2:           #e84a27;  /* Illinois orange */
+  --good:              #1b6b2f;
+  --bad:               #a4210c;
+
+  /* Names used through the rest of this file, mapped onto the house palette. */
+  --color-bg:          var(--paper);
+  --color-surface:     var(--panel);
+  --color-ink:         var(--ink);
+  --color-ink-soft:    #5b5750;
+  --color-line:        var(--line);
+  --color-line-soft:   #e8e5df;
+
+  --color-accent:      var(--accent);
+  --color-accent-soft: #e7eaf1;
+  --color-orange:      var(--accent2);
+
+  --color-ok:          var(--good);
+  --color-ok-bg:       #e8f2ea;
+  --color-warn:        #7a5600;
+  --color-warn-bg:     #f8f1de;
+  --color-error:       var(--bad);
+  --color-error-bg:    #f8e9e6;
+
+  --radius:            6px;
+  --radius-sm:         4px;
+  --shadow:            0 1px 2px rgba(16, 24, 40, .06), 0 1px 3px rgba(16, 24, 40, .1);
+
+  /* Georgia, as PRI Facilities sets it. Data-dense screens keep the sans. */
+  --font: Georgia, "Times New Roman", "Liberation Serif", serif;
+  --font-ui: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", monospace;
+
+  /* Calendar */
+  --cal-gutter:        52px;
+  --cal-free:          #faf9f7;
+  --cal-free-alt:      #f2f0ec;   /* weekend columns */
+  --cal-booked:        #7b8ca6;
+  --cal-booked-ink:    #ffffff;
+  --cal-mine:          var(--accent2);
+  --cal-mine-ink:      #ffffff;
+  --cal-ghost:         rgba(19, 41, 75, .35);
+}
+
+/* --- Reset and base ------------------------------------------------------ */
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  font: 15px/1.55 var(--font);
+  color: var(--color-ink);
+  background: var(--color-bg);
+}
+
+/* Prose and headings take the house serif. The dense parts — the tables of
+   charges, the entry form, and the calendar, where the type gets small and
+   numbers have to line up — stay on the interface sans. */
+table.data, .cal-grid, .cal-toolbar, .cal-hintbar, .cal-actionbar, .cal-tip,
+input, select, textarea, button, .pill, .crumbs, .hint {
+  font-family: var(--font-ui);
+}
+
+h1, h2, h3 { line-height: 1.25; margin: 0 0 .5rem; font-weight: 600; }
+h1 { font-size: 1.5rem; }
+h2 { font-size: 1.15rem; margin-top: 2rem; }
+h3 { font-size: 1rem; }
+
+p { margin: 0 0 1rem; }
+p:last-child { margin-bottom: 0; }
+
+a { color: var(--color-accent); }
+a:hover { color: var(--color-orange); }
+
+code {
+  font-family: var(--font-mono);
+  font-size: .875em;
+  background: var(--color-line-soft);
+  padding: .1em .35em;
+  border-radius: var(--radius-sm);
+}
+
+.lede { color: var(--color-ink-soft); font-size: 1.02rem; }
+.hint { color: var(--color-ink-soft); font-size: .85rem; margin: .3rem 0 0; }
+.muted { color: var(--color-ink-soft); }
+.nowrap { white-space: nowrap; }
+.right { text-align: right; }
+.center { text-align: center; }
+.num { text-align: right; font-variant-numeric: tabular-nums; }
+
+/* --- Page frame ----------------------------------------------------------
+   The header and footer are the approved Illinois web components, and the
+   toolkit stylesheet owns them. Nothing here restyles <ilw-header> or
+   <ilw-footer>; these rules cover the application's own navigation list inside
+   the header's navigation slot, and everything between the two.
+   -------------------------------------------------------------------------- */
+
+ilw-header ilw-header-menu ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+}
+ilw-header ilw-header-menu li.current > a { font-weight: 700; }
+
+ilw-header nav.il-links ul { list-style: none; margin: 0; padding: 0; }
+ilw-header nav.il-links li { display: inline-block; margin-left: 1rem; }
+
+main.page {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 1.75rem 1.25rem 3rem;
+}
+main.page.narrow { max-width: 640px; }
+main.page.wide   { max-width: 1400px; }
+
+.page-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 1.25rem;
+}
+.page-head .lede { margin: 0; max-width: 62ch; }
+
+/* Breadcrumbs. The way back out of a screen, which the tab strip used to
+   pretend to be while actually repeating the overview's own cards. */
+.crumbs {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: .9rem 1.25rem 0;
+  font-size: .85rem;
+}
+.crumbs ol { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: .35rem; }
+.crumbs li + li::before { content: "›"; margin-right: .35rem; color: var(--color-ink-soft); }
+.crumbs li:last-child { color: var(--color-ink-soft); }
+
+/* --- Accordions -----------------------------------------------------------
+   Plain <details>. The marker is drawn here rather than left to the browser so
+   it points the same way in all of them, but the open and close behaviour is
+   entirely the browser's, which is why it works without script.
+   -------------------------------------------------------------------------- */
+
+.accordion {
+  background: var(--color-surface);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  /* Top margin as well as bottom: an accordion that follows a row of cards or a
+     heading needs the same air between them as any other block would get. */
+  margin: 1.5rem 0;
+  overflow: hidden;
+}
+.accordion + .accordion { margin-top: 1rem; }
+.accordion-critical    { border-left: 4px solid var(--color-error); }
+.accordion-warning     { border-left: 4px solid var(--color-warn); }
+.accordion-notice      { border-left: 4px solid var(--color-accent); }
+.accordion-opportunity { border-left: 4px solid var(--color-ok); }
+
+.accordion > summary {
+  cursor: pointer;
+  padding: .8rem 1.25rem;
+  display: flex;
+  align-items: baseline;
+  gap: .75rem;
+  flex-wrap: wrap;
+  list-style: none;
+  font-family: var(--font-ui);
+  user-select: none;
+}
+.accordion > summary::-webkit-details-marker { display: none; }
+.accordion > summary::before {
+  content: "";
+  flex: 0 0 auto;
+  width: 0; height: 0;
+  border-left: 5px solid var(--color-ink-soft);
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+  transition: transform .12s ease;
+  transform-origin: 25% 50%;
+  align-self: center;
+}
+.accordion[open] > summary::before { transform: rotate(90deg); }
+.accordion > summary:hover { background: var(--color-accent-soft); }
+.accordion > summary:focus-visible { outline: 2px solid var(--color-accent); outline-offset: -2px; }
+
+.accordion-title { font-weight: 600; flex: 1 1 auto; }
+.accordion-meta  { color: var(--color-ink-soft); font-size: .82rem; }
+
+.accordion-body { padding: 0 1.25rem 1.25rem; }
+.accordion-body > .card { box-shadow: none; }
+.accordion-body > .card:last-child,
+.accordion-body > .table-wrap:last-child { margin-bottom: 0; }
+/* A table inside an accordion runs to the panel's own edges. */
+.accordion-body > .table-wrap { margin: 0 -1.25rem -1.25rem; }
+.accordion-body > .table-wrap table.data { border-top: 1px solid var(--color-line-soft); }
+
+/* --- The message log ------------------------------------------------------ */
+
+.email-head { margin: 0 0 1rem; font-family: var(--font-ui); font-size: .875rem; }
+.email-head > div { display: flex; gap: .6rem; padding: .12rem 0; }
+.email-head dt { flex: 0 0 7rem; color: var(--color-ink-soft); }
+.email-head dd { margin: 0; }
+
+.email-body {
+  font-family: var(--font-mono);
+  font-size: .8rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+  background: var(--color-bg);
+  border: 1px solid var(--color-line-soft);
+  border-radius: var(--radius-sm);
+  padding: .9rem 1rem;
+  margin: 0 0 1rem;
+  max-height: 26rem;
+  overflow: auto;
+}
+
+/* --- Cards --------------------------------------------------------------- */
+
+.card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  padding: 1.25rem;
+  box-shadow: var(--shadow);
+  margin-bottom: 1.5rem;
+}
+.card > h2:first-child, .card > h3:first-child { margin-top: 0; }
+.card-tight { padding: 0; }
+.card-tight > h2, .card-tight > h3 { padding: 1rem 1.25rem 0; }
+
+.grid-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 1rem;
+}
+.grid-cards .card { margin: 0; }
+.grid-cards a.card { text-decoration: none; color: inherit; display: block; }
+.grid-cards a.card:hover { border-color: var(--color-accent); }
+.grid-cards .card h3 { margin-bottom: .25rem; }
+.grid-cards .card p { color: var(--color-ink-soft); font-size: .875rem; margin: 0; }
+
+/* --- Forms --------------------------------------------------------------- */
+
+.field { margin-bottom: 1rem; }
+.field:last-child { margin-bottom: 0; }
+
+label {
+  display: block;
+  font-size: .82rem;
+  font-weight: 600;
+  letter-spacing: .01em;
+  color: var(--color-ink);
+  margin-bottom: .3rem;
+}
+
+input[type=text], input[type=password], input[type=number], input[type=date],
+input[type=time], input[type=email], input[type=search], select, textarea {
+  width: 100%;
+  font: inherit;
+  color: inherit;
+  padding: .5rem .6rem;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-sm);
+  background: #fff;
+}
+input:focus, select:focus, textarea:focus {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -1px;
+  border-color: var(--color-accent);
+}
+input[readonly], input:disabled, select:disabled, textarea[readonly] {
+  background: var(--color-line-soft);
+  color: var(--color-ink-soft);
+  cursor: default;
+}
+textarea { min-height: 4.5rem; resize: vertical; }
+select { appearance: auto; }
+
+.field-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 0 1rem;
+}
+.field-row-3 { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+
+.checkline { display: flex; align-items: center; gap: .5rem; }
+.checkline label { margin: 0; font-weight: 400; font-size: .9rem; }
+.checkline input[type=checkbox] { width: auto; }
+
+.form-actions {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--color-line-soft);
+  flex-wrap: wrap;
+}
+
+fieldset { border: 1px solid var(--color-line); border-radius: var(--radius); padding: 1rem; margin: 0 0 1rem; }
+legend { font-size: .82rem; font-weight: 600; padding: 0 .35rem; }
+
+/* --- Buttons ------------------------------------------------------------- */
+
+.button, button.button, a.button {
+  display: inline-block;
+  font: inherit;
+  font-weight: 500;
+  line-height: 1.4;
+  padding: .5rem 1rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-accent);
+  background: var(--color-accent);
+  color: #fff;
+  text-decoration: none;
+  cursor: pointer;
+}
+.button:hover { background: #0d1d36; border-color: #0d1d36; color: #fff; }
+.button:disabled, .button[aria-disabled=true] { opacity: .5; cursor: not-allowed; }
+
+.button-secondary {
+  background: #fff;
+  color: var(--color-accent);
+}
+.button-secondary:hover { background: var(--color-accent-soft); color: var(--color-accent); }
+
+.button-danger { background: var(--color-error); border-color: var(--color-error); }
+.button-danger:hover { background: #8f1d17; border-color: #8f1d17; }
+
+.button-small { padding: .28rem .6rem; font-size: .82rem; }
+
+.link-quiet { color: var(--color-ink-soft); font-size: .85rem; }
+.link-danger { color: var(--color-error); }
+
+.button-row { display: flex; gap: .5rem; flex-wrap: wrap; align-items: center; }
+
+/* --- Flash messages ------------------------------------------------------ */
+
+.flash {
+  border: 1px solid;
+  border-radius: var(--radius);
+  padding: .7rem 1rem;
+  margin-bottom: 1rem;
+  font-size: .92rem;
+}
+.flash-success { background: var(--color-ok-bg);    border-color: #9dd3b2; color: #12351f; }
+.flash-notice  { background: var(--color-warn-bg);  border-color: #e6cf8b; color: #4a3a05; }
+.flash-error   { background: var(--color-error-bg); border-color: #efab9f; color: #6d1811; }
+
+/* --- Tables -------------------------------------------------------------- */
+
+.table-wrap { overflow-x: auto; }
+
+table.data {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--color-surface);
+  font-size: .9rem;
+}
+table.data th, table.data td {
+  text-align: left;
+  padding: .55rem .7rem;
+  border-bottom: 1px solid var(--color-line-soft);
+  vertical-align: top;
+}
+table.data thead th {
+  background: #f8f9fa;
+  font-size: .74rem;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: var(--color-ink-soft);
+  border-bottom: 1px solid var(--color-line);
+  white-space: nowrap;
+}
+table.data tbody tr:hover { background: #fbfcfd; }
+table.data tbody tr:last-child td { border-bottom: 0; }
+table.data td.num, table.data th.num { text-align: right; font-variant-numeric: tabular-nums; }
+table.data tr.is-voided td { color: var(--color-ink-soft); text-decoration: line-through; }
+table.data tr.is-voided td.reason { text-decoration: none; }
+table.data tr.is-locked td { background: #fbfbfc; }
+
+.empty {
+  padding: 1.5rem;
+  text-align: center;
+  color: var(--color-ink-soft);
+  font-size: .9rem;
+}
+
+.pill {
+  display: inline-block;
+  font-size: .72rem;
+  font-weight: 600;
+  letter-spacing: .03em;
+  text-transform: uppercase;
+  padding: .12rem .4rem;
+  border-radius: var(--radius-sm);
+  background: var(--color-line-soft);
+  color: var(--color-ink-soft);
+}
+.pill-ok      { background: var(--color-ok-bg);    color: var(--color-ok); }
+.pill-warn    { background: var(--color-warn-bg);  color: var(--color-warn); }
+.pill-error   { background: var(--color-error-bg); color: var(--color-error); }
+.pill-locked  { background: var(--color-accent-soft); color: var(--color-accent); }
+
+/* --- Use entry ----------------------------------------------------------- */
+
+
+/* The entry form runs the full width of the page. The running total sits at
+   the foot of it, immediately above the button, rather than in a column beside
+   the fields where it competed with them for attention. */
+.entry-form { display: block; max-width: 860px; }
+
+.charge-bar {
+  margin-top: 1.5rem;
+  background: var(--color-accent);
+  color: #fff;
+  border-radius: var(--radius);
+  padding: 1rem 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem 2rem;
+  flex-wrap: wrap;
+}
+.charge-bar-total { display: flex; align-items: baseline; gap: .75rem; flex-wrap: wrap; }
+.charge-bar-total .label {
+  font-size: .74rem;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: rgba(255, 255, 255, .7);
+  font-weight: 600;
+}
+.charge-total {
+  font-size: 2rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+.charge-formula { color: rgba(255, 255, 255, .75); font-size: .85rem; }
+
+.charge-bar-meta { display: flex; gap: 1.75rem; margin: 0; flex-wrap: wrap; }
+.charge-bar-meta div { display: flex; flex-direction: column; gap: .1rem; }
+.charge-bar-meta dt {
+  font-size: .7rem;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: rgba(255, 255, 255, .6);
+}
+.charge-bar-meta dd { margin: 0; font-size: .9rem; color: #fff; }
+
+.readonly-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 0 1rem; }
+/* The alert list, ranked. The order carries the meaning, so the numbering is
+   left visible and the colour only reinforces what the position already says:
+   a broken instrument sits above an idle one because it matters more. */
+/* No border here: the accordion around this already draws one in the same
+   colour, and two of them side by side read as a mistake. */
+.alert-card { border: 0; padding: 0; margin: 0; background: none; box-shadow: none; }
+
+.alert-count {
+  display: inline-block;
+  background: var(--color-line-soft);
+  color: var(--color-ink-soft);
+  border-radius: 999px;
+  font-size: .72rem;
+  font-weight: 600;
+  padding: .05rem .45rem;
+  vertical-align: middle;
+  margin-left: .35rem;
+}
+
+.alert-list {
+  list-style: decimal;
+  margin: 0;
+  padding: 0 0 0 1.6rem;
+  font-family: var(--font-ui);
+}
+.alert-list li {
+  padding: .5rem 0;
+  border-bottom: 1px solid var(--color-line-soft);
+}
+.alert-list li::marker { color: var(--color-ink-soft); font-size: .8rem; font-weight: 700; }
+.alert-list li:last-child { border-bottom: 0; }
+
+.alert-row {
+  display: flex;
+  align-items: baseline;
+  gap: .6rem;
+  flex-wrap: wrap;
+}
+
+.alert-tag {
+  flex: 0 0 auto;
+  font-size: .66rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  padding: .1rem .4rem;
+  border-radius: var(--radius-sm);
+  background: var(--color-line-soft);
+  color: var(--color-ink-soft);
+  white-space: nowrap;
+}
+.alert-critical    .alert-tag { background: var(--color-error-bg); color: var(--color-error); }
+.alert-warning     .alert-tag { background: var(--color-warn-bg);  color: var(--color-warn); }
+.alert-notice      .alert-tag { background: var(--color-accent-soft); color: var(--color-accent); }
+.alert-opportunity .alert-tag { background: var(--color-ok-bg);    color: var(--color-ok); }
+
+.alert-body { flex: 1 1 22rem; min-width: 0; font-size: .9rem; }
+.alert-body strong { display: block; font-weight: 600; }
+.alert-detail { display: block; color: var(--color-ink-soft); font-size: .85rem; margin-top: .1rem; }
+.alert-list .button { flex: 0 0 auto; }
+
+/* Cost recovery */
+.is-short { color: var(--color-error); font-weight: 600; }
+.is-ahead { color: var(--color-ok); }
+
+.cost-breakdown { list-style: none; margin: 0; padding: 0; font-family: var(--font-ui); }
+.cost-breakdown li {
+  display: flex;
+  align-items: baseline;
+  gap: .75rem;
+  padding: .3rem 0;
+  border-bottom: 1px solid var(--color-line-soft);
+  font-size: .9rem;
+}
+.cost-breakdown li:last-child { border-bottom: 0; }
+.cost-breakdown li > span:first-child { flex: 1 1 auto; }
+.cost-breakdown strong { font-variant-numeric: tabular-nums; }
+
+.notify-card { border-left: 4px solid var(--color-accent); }
+
+.notify-list { margin: 1rem 0; padding-left: 1.5rem; font-family: var(--font-ui); }
+.notify-list li { padding: .35rem 0; }
+.notify-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+.notify-to { display: flex; flex-direction: column; }
+.notify-to .hint { margin: 0; }
+
+.field-spaced { margin-top: 1rem; }
+.card-heading { margin-top: 0; }
+.grant-hint-warn { color: var(--color-warn); font-weight: 500; }
+
+/* --- Identity prompt ----------------------------------------------------- */
+
+.identity-gate { max-width: 420px; margin: 3rem auto; }
+
+/* --- Report -------------------------------------------------------------- */
+
+.report-filters { display: flex; gap: 1rem; align-items: flex-end; flex-wrap: wrap; }
+.report-filters .field { margin-bottom: 0; }
+
+.totals-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+.total-tile {
+  background: var(--color-surface);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  padding: .9rem 1rem;
+}
+.total-tile .label {
+  font-size: .72rem;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: var(--color-ink-soft);
+  font-weight: 600;
+}
+.total-tile .value { font-size: 1.5rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+.total-tile .value.value-small { font-size: 1.05rem; line-height: 1.35; }
+
+.cfopa-group { margin-bottom: 1.5rem; border: 1px solid var(--color-line); border-radius: var(--radius); overflow: hidden; background: var(--color-surface); }
+.cfopa-head {
+  background: var(--color-accent-soft);
+  padding: .7rem 1rem;
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: baseline;
+  flex-wrap: wrap;
+  border-bottom: 1px solid var(--color-line);
+}
+.cfopa-head .cfopa-number { font-weight: 600; font-family: var(--font-mono); }
+.cfopa-head .cfopa-title { color: var(--color-ink-soft); font-size: .875rem; }
+.cfopa-head .cfopa-total { font-weight: 600; font-variant-numeric: tabular-nums; margin-left: auto; }
+
+.instrument-head td {
+  background: #f8f9fa;
+  font-weight: 600;
+  font-size: .85rem;
+}
+tr.subtotal td {
+  background: #fbfcfd;
+  font-weight: 600;
+  border-top: 1px solid var(--color-line);
+}
+tr.grand td { font-size: 1rem; font-weight: 700; background: var(--color-accent-soft); }
+
+/* --- Calendar ------------------------------------------------------------ */
+
+/* The grid is sized against the height actually left below the approved
+   header, which calendar.js measures and writes to --cal-height. It is still
+   the viewport that decides the row height, not a pixel count in this file;
+   the page itself scrolls only to reach the footer, never to use the grid. */
+body.schedule-page main.schedule-main {
+  display: flex;
+  flex-direction: column;
+  max-width: none;
+  width: 100%;
+  padding: .75rem 1rem 1rem;
+  gap: .6rem;
+}
+
+.cal-toolbar {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  flex-wrap: wrap;
+  flex: 0 0 auto;
+}
+.cal-toolbar select { width: auto; min-width: 220px; }
+.cal-toolbar .week-label { font-weight: 600; }
+.cal-toolbar .spacer { margin-left: auto; }
+
+.cal-legend { display: flex; gap: .9rem; align-items: center; font-size: .8rem; color: var(--color-ink-soft); }
+.cal-legend i {
+  display: inline-block;
+  width: .8rem; height: .8rem;
+  border-radius: 2px;
+  vertical-align: -1px;
+  margin-right: .3rem;
+}
+.cal-legend .swatch-free   { background: var(--cal-free); border: 1px solid var(--color-line); }
+.cal-legend .swatch-booked { background: var(--cal-booked); }
+.cal-legend .swatch-mine   { background: var(--cal-mine); }
+
+.cal-grid {
+  flex: 0 0 auto;
+  height: var(--cal-height, 34rem);
+  min-height: 22rem;
+  display: grid;
+  grid-template-columns: var(--cal-gutter) repeat(7, minmax(0, 1fr));
+  grid-template-rows: auto repeat(48, minmax(0, 1fr));
+  background: var(--color-surface);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  overflow: hidden;
+  position: relative;
+  user-select: none;
+  touch-action: none;
+}
+
+/* Explicit placement utilities. The grid has 8 columns (gutter plus seven days)
+   and 49 rows (the day names plus forty-eight half hours), and every cell says
+   exactly where it goes rather than relying on auto-placement. JavaScript sets
+   grid-row and grid-column directly on booking blocks, which is the one place
+   in the application where a style is written from code. */
+.c1 { grid-column-start: 1; } .c2 { grid-column-start: 2; } .c3 { grid-column-start: 3; }
+.c4 { grid-column-start: 4; } .c5 { grid-column-start: 5; } .c6 { grid-column-start: 6; }
+.c7 { grid-column-start: 7; } .c8 { grid-column-start: 8; }
+
+.r1  { grid-row-start: 1;  } .r2  { grid-row-start: 2;  } .r3  { grid-row-start: 3;  }
+.r4  { grid-row-start: 4;  } .r5  { grid-row-start: 5;  } .r6  { grid-row-start: 6;  }
+.r7  { grid-row-start: 7;  } .r8  { grid-row-start: 8;  } .r9  { grid-row-start: 9;  }
+.r10 { grid-row-start: 10; } .r11 { grid-row-start: 11; } .r12 { grid-row-start: 12; }
+.r13 { grid-row-start: 13; } .r14 { grid-row-start: 14; } .r15 { grid-row-start: 15; }
+.r16 { grid-row-start: 16; } .r17 { grid-row-start: 17; } .r18 { grid-row-start: 18; }
+.r19 { grid-row-start: 19; } .r20 { grid-row-start: 20; } .r21 { grid-row-start: 21; }
+.r22 { grid-row-start: 22; } .r23 { grid-row-start: 23; } .r24 { grid-row-start: 24; }
+.r25 { grid-row-start: 25; } .r26 { grid-row-start: 26; } .r27 { grid-row-start: 27; }
+.r28 { grid-row-start: 28; } .r29 { grid-row-start: 29; } .r30 { grid-row-start: 30; }
+.r31 { grid-row-start: 31; } .r32 { grid-row-start: 32; } .r33 { grid-row-start: 33; }
+.r34 { grid-row-start: 34; } .r35 { grid-row-start: 35; } .r36 { grid-row-start: 36; }
+.r37 { grid-row-start: 37; } .r38 { grid-row-start: 38; } .r39 { grid-row-start: 39; }
+.r40 { grid-row-start: 40; } .r41 { grid-row-start: 41; } .r42 { grid-row-start: 42; }
+.r43 { grid-row-start: 43; } .r44 { grid-row-start: 44; } .r45 { grid-row-start: 45; }
+.r46 { grid-row-start: 46; } .r47 { grid-row-start: 47; } .r48 { grid-row-start: 48; }
+.r49 { grid-row-start: 49; }
+
+.cal-corner { border-bottom: 1px solid var(--color-line); border-right: 1px solid var(--color-line); background: #f8f9fa; }
+
+.cal-dayname {
+  border-bottom: 1px solid var(--color-line);
+  border-right: 1px solid var(--color-line-soft);
+  background: #f8f9fa;
+  text-align: center;
+  padding: .3rem .25rem;
+  font-size: .78rem;
+  font-weight: 600;
+  color: var(--color-ink-soft);
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.cal-dayname .dnum { display: block; font-size: .95rem; color: var(--color-ink); font-weight: 600; }
+.cal-dayname.is-today { background: var(--color-accent-soft); }
+.cal-dayname.is-today .dnum { color: var(--color-orange); }
+.cal-dayname:last-child { border-right: 0; }
+
+.cal-hour {
+  grid-row-end: span 2;   /* a label covers its hour, not its first half hour */
+  border-right: 1px solid var(--color-line);
+  border-top: 1px solid var(--color-line-soft);
+  font-size: .68rem;
+  color: var(--color-ink-soft);
+  text-align: right;
+  padding: 1px 4px 0 0;
+  background: #f8f9fa;
+  line-height: 1;
+  overflow: hidden;
+  font-variant-numeric: tabular-nums;
+}
+
+.cal-cell {
+  background: var(--cal-free);
+  border-top: 1px solid var(--color-line-soft);
+  border-right: 1px solid var(--color-line-soft);
+  cursor: crosshair;
+}
+/* A full hour gets a firmer division line than a half hour. */
+.cal-cell.hour-line { border-top-color: var(--color-line); }
+.cal-cell.weekend { background: var(--cal-free-alt); }
+.cal-cell.col-6 { border-right: 0; }
+.cal-cell:hover { background: var(--color-accent-soft); }
+
+.cal-block {
+  position: relative;
+  z-index: 2;
+  margin: 1px 2px;
+  border-radius: 3px;
+  background: var(--cal-booked);
+  color: var(--cal-booked-ink);
+  font-size: .7rem;
+  line-height: 1;
+  overflow: hidden;
+  cursor: grab;
+  min-height: 0;
+}
+.cal-block.mine { background: var(--cal-mine); color: var(--cal-mine-ink); }
+.cal-block.selected { outline: 2px solid var(--color-accent); outline-offset: 1px; z-index: 4; }
+.cal-block.dragging { opacity: .65; cursor: grabbing; }
+/* What a block says at a glance. The label never takes the pointer, so a drag
+   that starts on the text still drags the block. */
+.cal-block-label {
+  display: block;
+  padding: 1px 4px;
+  pointer-events: none;
+  overflow: hidden;
+  height: 100%;
+}
+.cal-block-label > span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.cal-block-who     { font-weight: 700; }
+.cal-block-when    { opacity: .85; font-variant-numeric: tabular-nums; }
+.cal-block-purpose { opacity: .85; font-style: italic; }
+
+/* Tall enough for everything. */
+.cal-block.label-full .cal-block-label    { font-size: .68rem; line-height: 1.25; }
+/* An hour or so: who and when. */
+.cal-block.label-compact .cal-block-label { font-size: .66rem; line-height: 1.2; }
+.cal-block.label-compact .cal-block-purpose { display: none; }
+/* A single half hour: the name only, and it has to sit on one line. */
+.cal-block.label-tiny .cal-block-label    { font-size: .62rem; line-height: 1; padding: 0 3px; }
+.cal-block.label-tiny .cal-block-when,
+.cal-block.label-tiny .cal-block-purpose  { display: none; }
+/* Shorter than a line of type. The tooltip is the only way in. */
+.cal-block.label-none .cal-block-label    { display: none; }
+
+.cal-block .grip {
+  position: absolute;
+  left: 0; right: 0;
+  height: 6px;
+  cursor: ns-resize;
+  z-index: 2;
+}
+.cal-block .grip-top { top: 0; }
+.cal-block .grip-bottom { bottom: 0; }
+
+.cal-ghost {
+  position: relative;
+  z-index: 3;
+  margin: 1px 2px;
+  border-radius: 3px;
+  background: var(--cal-ghost);
+  pointer-events: none;
+}
+
+.cal-tip {
+  position: fixed;
+  z-index: 40;
+  background: var(--color-ink);
+  color: #fff;
+  border-radius: var(--radius-sm);
+  padding: .45rem .6rem;
+  font-size: .78rem;
+  line-height: 1.35;
+  max-width: 240px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, .25);
+  pointer-events: none;
+}
+.cal-tip strong { display: block; font-size: .82rem; }
+.cal-tip .tip-time { color: rgba(255, 255, 255, .7); }
+
+.visually-hidden {
+  position: absolute;
+  width: 1px; height: 1px;
+  margin: -1px; padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.cal-actionbar {
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+  flex-wrap: wrap;
+  background: var(--color-surface);
+  border: 1px solid var(--color-accent);
+  border-radius: var(--radius);
+  padding: .45rem .75rem;
+  margin-bottom: .5rem;
+  font-size: .85rem;
+}
+.cal-actionbar .who { font-weight: 600; }
+.cal-actionbar .when { color: var(--color-ink-soft); }
+.cal-actionbar .button-row { margin-left: auto; }
+
+.cal-hintbar {
+  flex: 0 0 auto;
+  font-size: .78rem;
+  color: var(--color-ink-soft);
+  display: flex;
+  gap: 1.2rem;
+  flex-wrap: wrap;
+}
+
+/* --- Dialogs ------------------------------------------------------------- */
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(16, 24, 40, .45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+  padding: 1rem;
+}
+.modal {
+  background: var(--color-surface);
+  border-radius: var(--radius);
+  padding: 1.25rem;
+  width: 100%;
+  max-width: 420px;
+  box-shadow: 0 12px 40px rgba(16, 24, 40, .28);
+  max-height: 90vh;
+  overflow: auto;
+}
+.modal h2 { margin-top: 0; font-size: 1.05rem; }
+.modal .modal-when { color: var(--color-ink-soft); font-size: .88rem; margin-bottom: 1rem; }
+.modal .weekday-picker { display: flex; gap: .35rem; flex-wrap: wrap; }
+.modal .weekday-picker label {
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-sm);
+  padding: .3rem .5rem;
+  font-weight: 400;
+  font-size: .82rem;
+  cursor: pointer;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: .3rem;
+}
+.modal .weekday-picker input { width: auto; }
+
+/* --- Admin --------------------------------------------------------------- */
+
+/* The administrative overview lists its sections as cards; the breadcrumb
+   above handles getting back. No tab strip repeating the same links. */
+
+/* Stacked, never side by side: a list and the form that edits it read down
+   the page in the order they are used. */
+.stack > * { margin-bottom: 1.5rem; }
+.stack > *:last-child { margin-bottom: 0; }
+
+/* --- Print --------------------------------------------------------------- */
+
+@media print {
+  ilw-header, ilw-footer, .crumbs, .report-filters, .button, .no-print { display: none !important; }
+  body { background: #fff; }
+  main.page { max-width: none; padding: 0; }
+  .card, .cfopa-group { box-shadow: none; border-color: #ccc; page-break-inside: avoid; }
+}
+
+/* --- The laboratory bar ---------------------------------------------------
+   Which laboratory you are looking at, directly under the banner. It is the
+   frame everything below it sits in, so it belongs above the content rather
+   than inside any one screen.
+   -------------------------------------------------------------------------- */
+
+.lab-bar {
+  background: var(--color-accent-soft);
+  border-bottom: 1px solid var(--color-line);
+  font-family: var(--font-ui);
+}
+.lab-bar-inner {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: .5rem 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+.lab-bar .hint { margin: 0; }
+
+.lab-picker { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; margin: 0; }
+.lab-picker label {
+  margin: 0;
+  font-size: .72rem;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: var(--color-ink-soft);
+}
+.lab-picker select { width: auto; min-width: 14rem; padding: .3rem .5rem; font-size: .9rem; }
+
+.lab-single { font-size: .95rem; font-weight: 600; }
+.lab-label {
+  font-size: .72rem;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: var(--color-ink-soft);
+  font-weight: 600;
+  margin-right: .35rem;
+}

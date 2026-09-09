@@ -186,7 +186,7 @@ $all = lab_equipment(false);
 $notify = [];
 if (isset($_GET['notify'])) {
     foreach (array_slice(explode(',', (string) $_GET['notify']), 0, 5) as $rawId) {
-        $logged = db_one('SELECT * FROM email_log WHERE email_id = ?', [(int) $rawId]);
+        $logged = db_one('SELECT * FROM email_log WHERE email_id = ? AND lab_id = ?', [(int) $rawId, current_lab_id()]);
         if (!$logged) {
             continue;
         }

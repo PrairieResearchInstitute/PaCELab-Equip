@@ -47,7 +47,9 @@ $batches = db_all(
     'SELECT b.*,
             (SELECT COUNT(*) FROM usage_records r WHERE r.export_batch_id = b.batch_id) AS still_attached
        FROM export_batches b
-      ORDER BY b.generated_at DESC'
+      WHERE b.lab_id = ?
+      ORDER BY b.generated_at DESC',
+    [current_lab_id()]
 );
 
 $viewing = null;

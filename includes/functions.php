@@ -551,11 +551,12 @@ function accordion_close(): void
 function log_email(array $message): int
 {
     db_run(
-        'INSERT INTO email_log (created_at, created_by, purpose, to_address, cc_address,
+        'INSERT INTO email_log (lab_id, created_at, created_by, purpose, to_address, cc_address,
                                 subject, body, equipment_id, status)
-         VALUES (:created_at, :created_by, :purpose, :to_address, :cc_address,
+         VALUES (:lab_id, :created_at, :created_by, :purpose, :to_address, :cc_address,
                  :subject, :body, :equipment_id, :status)',
         [
+            'lab_id'       => $message['lab_id'] ?? current_lab_id(),
             'created_at'   => date('Y-m-d H:i:s'),
             'created_by'   => $message['created_by'] ?? admin_display_name(),
             'purpose'      => $message['purpose'] ?? '',
@@ -698,6 +699,7 @@ function compose_equipment_email(array $item, string $kind): array
     $body[] = 'Recorded by ' . admin_display_name() . ' on ' . date('F j, Y \a\t g:i a') . '.';
 
     return [
+        'lab_id'       => (int) $item['lab_id'],
         'purpose'      => 'equipment_' . $kind,
         'to'           => $contact['email'],
         'cc'           => $contact['cc'],
@@ -803,6 +805,7 @@ function compose_lab_group_email(array $item, string $kind): array
     $body[] = admin_display_name();
 
     return [
+        'lab_id'       => (int) $item['lab_id'],
         'purpose'      => 'labgroup_' . $kind,
         'to'           => $group['email'],
         'cc'           => '',

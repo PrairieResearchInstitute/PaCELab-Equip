@@ -175,6 +175,7 @@ function schema_statements(): array
         // that rather than pretending the message went.
         'CREATE TABLE IF NOT EXISTS email_log (
             email_id     INTEGER PRIMARY KEY AUTOINCREMENT,
+            lab_id       INTEGER REFERENCES labs(lab_id),
             created_at   TEXT NOT NULL,
             created_by   TEXT NOT NULL DEFAULT \'\',
             purpose      TEXT NOT NULL DEFAULT \'\',

@@ -21,7 +21,7 @@ require_admin();
 // exactly as they were written.
 $reopen = null;
 if (isset($_GET['open'])) {
-    $row = db_one('SELECT * FROM email_log WHERE email_id = ?', [(int) $_GET['open']]);
+    $row = db_one('SELECT * FROM email_log WHERE email_id = ? AND lab_id = ?', [(int) $_GET['open'], current_lab_id()]);
     if ($row && $row['to_address'] !== '') {
         $reopen = [
             'id'   => (int) $row['email_id'],
@@ -40,21 +40,21 @@ $filterEquip   = (int) ($_GET['equipment_id'] ?? 0);
 $sql = 'SELECT l.*, e.name AS equipment_name
           FROM email_log l
           LEFT JOIN equipment e ON e.equipment_id = l.equipment_id
-         WHERE 1 = 1';
-$params = [];
+         WHERE l.lab_id = ?';
+$params = [current_lab_id()];
 if ($filterPurpose !== '') { $sql .= ' AND l.purpose = ?';      $params[] = $filterPurpose; }
 if ($filterEquip)          { $sql .= ' AND l.equipment_id = ?'; $params[] = $filterEquip; }
 $sql .= ' ORDER BY l.created_at DESC, l.email_id DESC LIMIT 200';
 
 $messages  = db_all($sql, $params);
-$purposes  = db_all('SELECT purpose, COUNT(*) AS n FROM email_log GROUP BY purpose ORDER BY purpose');
+$purposes  = db_all('SELECT purpose, COUNT(*) AS n FROM email_log WHERE lab_id = ? GROUP BY purpose ORDER BY purpose', [current_lab_id()]);
 $equipment = lab_equipment(false);
 
 $counts = [
-    'total'   => (int) db_value('SELECT COUNT(*) FROM email_log'),
-    'opened'  => (int) db_value("SELECT COUNT(*) FROM email_log WHERE status = 'opened'"),
-    'unsent'  => (int) db_value("SELECT COUNT(*) FROM email_log WHERE status = 'composed'"),
-    'orphans' => (int) db_value("SELECT COUNT(*) FROM email_log WHERE status = 'no_recipient'"),
+    'total'   => (int) db_value('SELECT COUNT(*) FROM email_log WHERE lab_id = ?', [current_lab_id()]),
+    'opened'  => (int) db_value("SELECT COUNT(*) FROM email_log WHERE lab_id = ? AND status = 'opened'", [current_lab_id()]),
+    'unsent'  => (int) db_value("SELECT COUNT(*) FROM email_log WHERE lab_id = ? AND status = 'composed'", [current_lab_id()]),
+    'orphans' => (int) db_value("SELECT COUNT(*) FROM email_log WHERE lab_id = ? AND status = 'no_recipient'", [current_lab_id()]),
 ];
 
 /** A purpose code as a sentence. */

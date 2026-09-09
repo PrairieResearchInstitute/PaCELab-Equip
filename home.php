@@ -1,10 +1,13 @@
 <?php
 /**
- * home.php — The landing screen.
+ * home.php — The landing screen: choose a laboratory.
  *
- * Somewhere to arrive, and somewhere to get back to. Every screen's header
- * links here, so no task is a dead end. It shows what the laboratory would want
- * to know at a glance and then points at the four modules.
+ * This page does one thing. Which laboratory you are in decides what every
+ * other screen shows, so it is the first question the application asks, and
+ * asking it is the whole of this page. Choosing one takes you into it.
+ *
+ * The laboratory bar is deliberately absent here — a picker above a page whose
+ * entire purpose is picking would be the same question asked twice.
  */
 
 declare(strict_types=1);
@@ -12,165 +15,94 @@ declare(strict_types=1);
 require_once __DIR__ . '/includes/functions.php';
 require_installed();
 
-$today = date('Y-m-d');
-$now   = date('Y-m-d H:i:s');
-
-$stats = [
-    'instruments' => (int) db_value('SELECT COUNT(*) FROM equipment WHERE lab_id = ? AND active = 1', [current_lab_id()]),
-    'pending'     => (int) db_value('SELECT COUNT(*) FROM usage_records r JOIN equipment e ON e.equipment_id = r.equipment_id WHERE e.lab_id = ? AND r.exported = 0 AND r.voided = 0', [current_lab_id()]),
-    'pending_amt' => (float) db_value('SELECT COALESCE(SUM(r.total_charge), 0) FROM usage_records r JOIN equipment e ON e.equipment_id = r.equipment_id WHERE e.lab_id = ? AND r.exported = 0 AND r.voided = 0', [current_lab_id()]),
-    'today'       => (int) db_value('SELECT COUNT(*) FROM usage_records r JOIN equipment e ON e.equipment_id = r.equipment_id WHERE e.lab_id = ? AND r.use_date = ? AND r.voided = 0', [current_lab_id(), $today]),
-    'booked'      => (int) db_value('SELECT COUNT(*) FROM reservations res JOIN equipment e ON e.equipment_id = res.equipment_id WHERE e.lab_id = ? AND res.end_datetime >= ?', [current_lab_id(), $now]),
-];
-
-// What is on an instrument right now, and what is coming up today.
-$onNow = db_all(
-    'SELECT r.*, e.name AS equipment_name FROM reservations r
-       JOIN equipment e ON e.equipment_id = r.equipment_id
-      WHERE e.lab_id = :lab AND r.start_datetime <= :now AND r.end_datetime > :now
-      ORDER BY e.name COLLATE NOCASE',
-    ['now' => $now]
-);
-
-$laterToday = db_all(
-    'SELECT r.*, e.name AS equipment_name FROM reservations r
-       JOIN equipment e ON e.equipment_id = r.equipment_id
-      WHERE e.lab_id = :lab AND r.start_datetime > :now AND r.start_datetime < :endOfDay
-      ORDER BY r.start_datetime LIMIT 8',
-    ['now' => $now, 'endOfDay' => $today . ' 23:59:59']
-);
-
-$myRecent = [];
-if (have_user_name()) {
-    $myRecent = db_all(
-        'SELECT r.*, e.name AS equipment_name, g.cfopa
-           FROM usage_records r
-           JOIN equipment e ON e.equipment_id = r.equipment_id
-           JOIN grants    g ON g.grant_id     = r.grant_id
-          WHERE e.lab_id = ? AND r.operator_name = ? AND r.voided = 0
-          ORDER BY r.created_at DESC LIMIT 5',
-        [current_lab_id(), current_user_name()]
-    );
+// Not require_lab(): somebody with no laboratory at all still belongs on this
+// screen, because this is where they are told so.
+if (identity_is_self_declared() && !have_user_name()) {
+    redirect('index.php');
 }
 
-page_header('Home', ['nav' => 'home']);
+$mine   = labs_for_person();
+$mineIds = array_map('intval', array_column($mine, 'lab_id'));
+
+// Laboratories this person cannot enter. Shown, but shut: knowing the
+// laboratory exists is what turns "nothing here" into "ask to be added".
+$others = array_values(array_filter(labs(), function ($lab) use ($mineIds) {
+    return !in_array((int) $lab['lab_id'], $mineIds, true);
+}));
+
+/** Instruments and people, for the card. */
+function lab_counts(int $labId): string
+{
+    $instruments = (int) db_value('SELECT COUNT(*) FROM equipment WHERE lab_id = ? AND active = 1', [$labId]);
+    $people      = (int) db_value('SELECT COUNT(*) FROM lab_members WHERE lab_id = ?', [$labId]);
+    return $instruments . ' instrument' . ($instruments === 1 ? '' : 's')
+         . ' · ' . $people . ' ' . ($people === 1 ? 'person' : 'people');
+}
+
+page_header('Choose a laboratory', ['nav' => 'home']);
 ?>
-<div class="page-head">
-  <div>
-    <h1><?= h(setting('lab_name', 'Shared Laboratory Equipment')) ?></h1>
-    <p class="lede"><?= h(setting('home_instructions',
-      'Log equipment use, book time on an instrument, and produce the monthly charge report.')) ?></p>
-  </div>
-</div>
+<h1>Choose a laboratory</h1>
 
-<?php render_alerts(equipment_alerts(), 'Needs attention', 6); ?>
+<?php if ($mine): ?>
+  <p class="lede">Each laboratory keeps its own instruments, grants, bookings and charges.
+  <?= count($mine) === 1 ? 'You are in one of them.' : 'You are in ' . count($mine) . ' of them.' ?></p>
 
-<div class="totals-strip">
-  <div class="total-tile">
-    <div class="label">Instruments</div>
-    <div class="value"><?= $stats['instruments'] ?></div>
-    <p class="hint">available to book and charge</p>
-  </div>
-  <div class="total-tile">
-    <div class="label">Runs logged today</div>
-    <div class="value"><?= $stats['today'] ?></div>
-  </div>
-  <div class="total-tile">
-    <div class="label">In use now</div>
-    <div class="value"><?= count($onNow) ?></div>
-    <p class="hint"><?= $stats['booked'] ?> bookings ahead</p>
-  </div>
-  <div class="total-tile">
-    <div class="label">Waiting to bill</div>
-    <div class="value"><?= h(money($stats['pending_amt'])) ?></div>
-    <p class="hint"><?= $stats['pending'] ?> charge<?= $stats['pending'] === 1 ? '' : 's' ?> not yet exported</p>
-  </div>
-</div>
+  <div class="grid-cards lab-cards">
+  <?php foreach ($mine as $lab): ?>
+    <form method="post" action="index.php" class="lab-card">
+      <?= csrf_field() ?>
+      <input type="hidden" name="action" value="switch_lab">
+      <input type="hidden" name="lab_id" value="<?= (int) $lab['lab_id'] ?>">
+      <input type="hidden" name="return_to" value="lab.php">
 
-<h2>What do you want to do?</h2>
-<div class="grid-cards">
-  <a class="card" href="index.php">
-    <h3>Record equipment use</h3>
-    <p>Log a run against a grant. The rate and the receiving account come from the instrument, and the total is worked out before you save.</p>
-  </a>
-  <a class="card" href="schedule.php">
-    <h3>Book instrument time</h3>
-    <p>A week at a glance, half hour by half hour. Drag down a day to book, drag a block to move it. First come, first served.</p>
-  </a>
-  <a class="card" href="report.php">
-    <h3>Monthly billing report</h3>
-    <p>Charges grouped by account and instrument, with the CSV the business office needs.</p>
-  </a>
-  <a class="card" href="admin/index.php">
-    <h3>Administration</h3>
-    <p>Instruments, grants, rates, corrections, and the wording on every screen. Behind a password.</p>
-  </a>
-</div>
+      <h3><?= h($lab['name']) ?></h3>
+      <?php if ($lab['description']): ?><p class="hint"><?= h($lab['description']) ?></p><?php endif; ?>
+      <p class="lab-card-counts"><?= h(lab_counts((int) $lab['lab_id'])) ?></p>
 
-<?php if ($onNow || $laterToday): ?>
-<?php accordion_open('home-today', 'Today', [
-    'open' => true,
-    'meta' => count($onNow) . ' in use now, ' . count($laterToday) . ' still to come',
-]); ?>
-  <p class="button-row">
-    <a class="button button-secondary button-small" href="schedule.php">Open the week's calendar</a>
-  </p>
-  <div class="table-wrap">
-    <table class="data">
-      <thead><tr><th>Instrument</th><th>Held by</th><th>From</th><th>Until</th><th>Purpose</th></tr></thead>
-      <tbody>
-      <?php foreach ($onNow as $r): ?>
-        <tr>
-          <td><strong><?= h($r['equipment_name']) ?></strong> <span class="pill pill-ok">in use</span></td>
-          <td><?= h($r['reserved_by']) ?></td>
-          <td class="nowrap"><?= h(date('g:i a', strtotime($r['start_datetime']))) ?></td>
-          <td class="nowrap"><?= h(date('g:i a', strtotime($r['end_datetime']))) ?></td>
-          <td><?= h($r['purpose']) ?></td>
-        </tr>
-      <?php endforeach; ?>
-      <?php foreach ($laterToday as $r): ?>
-        <tr>
-          <td><?= h($r['equipment_name']) ?></td>
-          <td><?= h($r['reserved_by']) ?></td>
-          <td class="nowrap"><?= h(date('g:i a', strtotime($r['start_datetime']))) ?></td>
-          <td class="nowrap"><?= h(date('g:i a', strtotime($r['end_datetime']))) ?></td>
-          <td><?= h($r['purpose']) ?></td>
-        </tr>
-      <?php endforeach; ?>
-      </tbody>
-    </table>
+      <button type="submit" class="button">Enter this laboratory</button>
+    </form>
+  <?php endforeach; ?>
+
+  <?php if (is_admin()): ?>
+    <a class="lab-card lab-card-new" href="admin/labs.php">
+      <h3>Add a laboratory</h3>
+      <p class="hint">Set up another group with its own instruments, grants and people.</p>
+      <span class="button button-secondary button-small">Set one up</span>
+    </a>
+  <?php endif; ?>
   </div>
-<?php accordion_close(); ?>
+
+<?php else: ?>
+  <div class="card notify-card">
+    <h2 class="card-heading">You are not in a laboratory yet</h2>
+    <p><strong><?= h(current_user_name() ?: 'You') ?></strong> has not been added to any laboratory,
+    so there is nothing to show: no instruments, no bookings, and nothing to charge.</p>
+    <p>An administrator adds people to a laboratory. Ask whoever looks after yours, and tell them
+    the name you type when you open this application — <code><?= h(person_key(current_user_name())) ?></code>.</p>
+    <div class="button-row">
+      <a class="button button-secondary" href="index.php?switch_user=1">Use a different name</a>
+    </div>
+  </div>
 <?php endif; ?>
 
-<?php if ($myRecent): ?>
-<?php accordion_open('home-mine', 'Your recent entries', [
-    'meta' => count($myRecent) . ' most recent, as ' . current_user_name(),
-]); ?>
-  <div class="table-wrap">
-    <table class="data">
-      <thead><tr><th>Date</th><th>Instrument</th><th>Account</th><th class="num">Count</th><th class="num">Charge</th><th></th></tr></thead>
-      <tbody>
-      <?php foreach ($myRecent as $r): ?>
-        <tr>
-          <td class="nowrap"><?= h(pretty_date($r['use_date'])) ?></td>
-          <td><?= h($r['equipment_name']) ?></td>
-          <td><code><?= h($r['cfopa']) ?></code></td>
-          <td class="num"><?= (int) $r['sample_count'] ?></td>
-          <td class="num nowrap"><?= h(money($r['total_charge'])) ?></td>
-          <td class="nowrap">
-            <?php if ((int) $r['exported'] === 1): ?>
-              <span class="pill pill-locked">billed</span>
-            <?php else: ?>
-              <a class="button button-secondary button-small" href="index.php?edit=<?= (int) $r['usage_id'] ?>">Edit</a>
-            <?php endif; ?>
-          </td>
-        </tr>
-      <?php endforeach; ?>
-      </tbody>
-    </table>
-  </div>
-<?php accordion_close(); ?>
+<?php if ($others): ?>
+  <?php accordion_open('home-other-labs', 'Other laboratories', [
+      'meta' => count($others) . ' you are not in',
+  ]); ?>
+    <p class="hint">These exist in this installation but are not open to you. Everything inside them —
+    instruments, bookings, charges — stays theirs.</p>
+    <div class="grid-cards lab-cards">
+    <?php foreach ($others as $lab): ?>
+      <div class="lab-card lab-card-shut">
+        <h3><?= h($lab['name']) ?> <span class="pill">no access</span></h3>
+        <?php if ($lab['description']): ?><p class="hint"><?= h($lab['description']) ?></p><?php endif; ?>
+        <p class="lab-card-counts"><?= h(lab_counts((int) $lab['lab_id'])) ?></p>
+        <p class="hint">Ask an administrator to add
+        <code><?= h(person_key(current_user_name()) ?: 'your name') ?></code> to it.</p>
+      </div>
+    <?php endforeach; ?>
+    </div>
+  <?php accordion_close(); ?>
 <?php endif; ?>
 <?php
 page_footer(['scripts' => ['assets/app.js']]);

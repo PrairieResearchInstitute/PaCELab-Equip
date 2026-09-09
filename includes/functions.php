@@ -349,17 +349,15 @@ function page_header(string $title, array $options = []): void
 </header>
 
 <?php
-  // Which laboratory you are looking at. A plain form, so it works without
-  // script; app.js submits it on change to save the extra click. It is only a
-  // choice when there is more than one to choose from — otherwise it says which
-  // laboratory this is and leaves it at that.
-  $availableLabs = labs_for_person();
-  $shownLab      = current_lab();
+  // Which laboratory you are in, on every screen except the one whose whole
+  // job is choosing it. A plain form, so it works without script; app.js
+  // submits it on change to save the extra click.
+  $availableLabs = ($here === 'home.php') ? [] : labs_for_person();
+  $shownLab      = $availableLabs ? current_lab() : null;
 ?>
 <?php if ($shownLab): ?>
 <div class="lab-bar">
   <div class="lab-bar-inner">
-<?php if (count($availableLabs) > 1): ?>
     <form method="post" action="<?= h($base) ?>index.php" class="lab-picker">
       <?= csrf_field() ?>
       <input type="hidden" name="action" value="switch_lab">
@@ -371,15 +369,15 @@ function page_header(string $title, array $options = []): void
           <?= h($option['name']) ?>
         </option>
 <?php endforeach; ?>
+<?php if (is_admin()): ?>
+        <option value="new">Add a laboratory&hellip;</option>
+<?php endif; ?>
+        <option value="choose">All laboratories&hellip;</option>
       </select>
-      <button type="submit" class="button button-secondary button-small">Switch</button>
+      <button type="submit" class="button button-secondary button-small">Go</button>
     </form>
-<?php else: ?>
-    <span class="lab-single"><span class="lab-label">Laboratory</span> <?= h($shownLab['name']) ?></span>
-<?php endif; ?>
-<?php if (is_admin() && count($availableLabs) > 1): ?>
-    <span class="hint">You see every laboratory because you are an administrator.</span>
-<?php endif; ?>
+
+    <a class="lab-dashboard-link" href="<?= h($base) ?>lab.php">Overview of <?= h($shownLab['name']) ?></a>
   </div>
 </div>
 <?php endif; ?>

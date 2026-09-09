@@ -24,20 +24,33 @@ if (identity_is_self_declared() && isset($_GET['switch_user'])) {
 // screen you were on rather than dumping you back at the entry form.
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'switch_lab') {
     csrf_require();
-    $wanted = (int) ($_POST['lab_id'] ?? 0);
+    $wanted = (string) ($_POST['lab_id'] ?? '');
 
+    // Two entries in the picker are destinations rather than laboratories.
+    if ($wanted === 'choose') {
+        redirect('home.php');
+    }
+    if ($wanted === 'new') {
+        if (!is_admin()) {
+            flash('Only an administrator sets up a laboratory.', 'error');
+            redirect('home.php');
+        }
+        redirect('admin/labs.php');
+    }
+
+    $wanted = (int) $wanted;
     if ($wanted && may_use_lab($wanted)) {
         set_current_lab($wanted);
-        $lab = lab_by_id($wanted);
-        flash('Now showing ' . $lab['name'] . '.');
+        flash('Now working in ' . lab_by_id($wanted)['name'] . '.');
     } else {
-        flash('That laboratory is not yours to look at.', 'error');
+        flash('That laboratory is not yours to work in.', 'error');
+        redirect('home.php');
     }
 
     // Only somewhere this application actually serves.
-    $back  = (string) ($_POST['return_to'] ?? 'home.php');
-    $known = array_column(site_pages(), 1);
-    redirect(in_array($back, $known, true) ? $back : 'home.php');
+    $back  = (string) ($_POST['return_to'] ?? 'lab.php');
+    $known = array_merge(array_column(site_pages(), 1), ['lab.php']);
+    redirect(in_array($back, $known, true) ? $back : 'lab.php');
 }
 
 if (identity_is_self_declared() && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'identify') {

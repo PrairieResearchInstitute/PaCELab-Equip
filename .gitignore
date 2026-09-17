@@ -40,3 +40,6 @@ Thumbs.db
 !*readme*
 !*Manual*
 !*manual*
+
+# PHP runtime copied into the folder so it runs on any computer; binaries, not source
+tools/php/

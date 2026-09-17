@@ -1,1 +1,6 @@
 * text=auto eol=lf
+
+# Windows launchers must stay CRLF: cmd.exe misreads batch files with bare LF endings.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.vbs text eol=crlf

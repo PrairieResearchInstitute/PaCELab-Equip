@@ -76,11 +76,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             $pdo->commit();
 
-            // Make sure the database file itself is not downloadable.
+            // Make sure the database file itself is not downloadable. Two files
+            // because two servers: .htaccess is Apache, web.config is IIS, and
+            // each is ignored by the other. Neither helps on nginx, which reads
+            // no per-directory file at all — there the database belongs outside
+            // the web root, and check.php says so after asking the server for it.
             $dataDir = dirname(LAB_DB_PATH);
             if (!file_exists($dataDir . '/.htaccess')) {
                 @file_put_contents($dataDir . '/.htaccess',
                     "Require all denied\n<IfModule !mod_authz_core.c>\n  Order allow,deny\n  Deny from all\n</IfModule>\n");
+            }
+            if (!file_exists($dataDir . '/web.config')) {
+                @file_put_contents($dataDir . '/web.config',
+                    "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+                    . "<configuration>\n  <system.webServer>\n    <security>\n"
+                    . "      <authorization>\n        <deny users=\"*\" />\n      </authorization>\n"
+                    . "    </security>\n  </system.webServer>\n</configuration>\n");
             }
 
             @file_put_contents($lockFile, "Installed " . $now . "\n");

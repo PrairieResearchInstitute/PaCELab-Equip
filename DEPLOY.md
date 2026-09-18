@@ -1,24 +1,36 @@
 # Putting this on the server
 
-The application is 29 files and 445 KB. There is nothing to build, nothing to
-install, and no package manager. You copy a folder and open it in a browser.
+The application is 33 files and 398 KB. There is nothing to compile, no package
+manager, and no dependencies to fetch. You unzip a folder and open it in a
+browser.
 
-This was tested by doing exactly that: the deployment set below was copied to an
-empty folder, installed from nothing, and every screen walked through. It came
-up clean.
+## Getting the package
 
-## What to copy
+Double-click **`BUILD FOR SERVER.bat`**. It runs the tests, refuses to build if
+any fail, and writes `dist\shared-lab-equipment-<date>.zip`.
 
-Copy these, keeping the folder structure:
+**Give IT that zip.** Do not give them the working folder: it carries 84 MB of
+Windows PHP, a local test database, and a script that invents fake charges.
+
+The build works from an explicit list of files rather than an exclusion pattern,
+and warns about anything in the project that is on neither the ship list nor the
+do-not-ship list — so a file added later cannot go missing silently.
+
+The zip was tested by unpacking it on Linux tooling, installing it from nothing,
+and walking every screen. It came up clean, with no PHP diagnostics of any kind.
+
+## What is in it
 
     index.php          home.php           lab.php
     schedule.php       report.php         api.php
     check.php          install.php        admin-recovery.php
+    DEPLOY.md          (this file)
     includes/          auth.php  db.php  functions.php  schema.php
+                       .htaccess  web.config
     assets/            style.css  app.js  calendar.js
     admin/             all 15 .php files
 
-## What NOT to copy
+## What is deliberately left out
 
 | Leave behind | Why |
 |---|---|
@@ -56,16 +68,36 @@ warns if the server is older than 8.3 while still letting it run.
 
 ## Confirm the database is not downloadable
 
-The installer writes `data/.htaccess`. On Apache that is enough. **On nginx or
-IIS it does nothing** — put the database outside the web root instead: create
-`config.php` beside `index.php` containing
+**This is the one thing that must not be skipped.** `data/lab.sqlite` holds every
+charge and every administrator password hash. If the web server will serve it,
+anyone who guesses the URL downloads the lot.
+
+The installer writes both `data/.htaccess` (Apache) and `data/web.config` (IIS),
+and ships the same pair in `includes/`. Each server reads one and ignores the
+other. **nginx reads neither** — it has no per-directory config at all — so on
+nginx the deny has to go in the site configuration, or the database has to live
+outside the web root.
+
+`check.php` no longer guesses. It asks this server for `data/lab.sqlite` over
+HTTP, exactly as an outsider would, and reports one of:
+
+- **ok** — the request came back 403 or 404, or the database is outside the web root.
+- **fail** — the request came back with the database. It says so in capitals. Do
+  not put real data in until this is fixed.
+- **warn** — it could not run the test, and tells you the URL to try by hand.
+
+So: **run `check.php` again after installing, before deleting it.** Before
+installation there is no database and the test has nothing to answer.
+
+To move the database out of the web root — the safest arrangement, and the only
+one that does not depend on server configuration — create `config.php` beside
+`index.php` containing:
 
 ```php
-<?php define('LAB_DB_PATH', '/home/account/private/lab.sqlite');
+<?php define('LAB_DB_PATH', '/var/www/private/lab.sqlite');
 ```
 
-Then browse to `data/lab.sqlite` yourself and confirm you get a 403 and not a
-download. Do this before anybody puts real data in.
+The directory must exist and be writable by the web server account.
 
 ## The one outside dependency
 

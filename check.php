@@ -135,20 +135,107 @@ if (is_dir($dataDir)) {
 }
 
 // --- Protection of the database file --------------------------------------
-$server = $_SERVER['SERVER_SOFTWARE'] ?? 'unknown';
-$isApache = stripos($server, 'apache') !== false;
-check(
-    'Web server',
-    'ok',
-    $server
-);
-check(
-    '.htaccess protection for data/',
-    $isApache ? 'ok' : 'warn',
-    $isApache
-        ? 'Apache detected, so the .htaccess shipped in data/ will deny web access to the database file.'
-        : 'This server may ignore .htaccess. Confirm that data/lab.sqlite cannot be downloaded over the web, or move the database outside the web root (see README).'
-);
+//
+// This used to guess from SERVER_SOFTWARE, which answers the wrong question:
+// whether the server is Apache, not whether the database can be downloaded.
+// It now asks for the file over HTTP, the way anybody else would, and reports
+// what came back. A guess cannot be wrong in a way anybody notices. This can.
+check('Web server', 'ok', $_SERVER['SERVER_SOFTWARE'] ?? 'unknown');
+
+/** Ask this same server for a path, and say what it answered. */
+function probe_url(string $path): array
+{
+    $https  = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+        || (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https');
+    $host   = (string) ($_SERVER['HTTP_HOST'] ?? $_SERVER['SERVER_NAME'] ?? 'localhost');
+    $dir    = rtrim(str_replace('\\', '/', dirname((string) ($_SERVER['SCRIPT_NAME'] ?? '/check.php'))), '/');
+    $url    = ($https ? 'https://' : 'http://') . $host . $dir . '/' . ltrim($path, '/');
+
+    if (function_exists('curl_init')) {
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 5,
+            CURLOPT_SSL_VERIFYPEER => false,   // a campus self-signed certificate is not this check's business
+            CURLOPT_SSL_VERIFYHOST => 0,
+            CURLOPT_RANGE          => '0-255', // enough to recognise it; never pull the whole database
+        ]);
+        $body = curl_exec($ch);
+        $code = (int) curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
+        $err  = curl_error($ch);
+        curl_close($ch);
+        return ['url' => $url, 'code' => $code, 'body' => (string) $body, 'error' => $err];
+    }
+
+    if (ini_get('allow_url_fopen')) {
+        $ctx  = stream_context_create(['http' => ['timeout' => 5, 'ignore_errors' => true],
+                                       'ssl'  => ['verify_peer' => false, 'verify_peer_name' => false]]);
+        $body = @file_get_contents($url, false, $ctx, 0, 256);
+        $code = 0;
+        foreach ($http_response_header ?? [] as $line) {
+            if (preg_match('#^HTTP/\S+\s+(\d{3})#', $line, $m)) { $code = (int) $m[1]; }
+        }
+        return ['url' => $url, 'code' => $code, 'body' => (string) $body, 'error' => ''];
+    }
+
+    return ['url' => $url, 'code' => 0, 'body' => '', 'error' => 'no way to make an HTTP request'];
+}
+
+// Where the database is, worked out the same way db.php works it out, but
+// without including it: this page stays standalone so it can be copied to the
+// server on its own.
+$dbPath = $dataDir . DIRECTORY_SEPARATOR . 'lab.sqlite';
+if (file_exists(__DIR__ . '/config.php')) {
+    $configText = (string) file_get_contents(__DIR__ . '/config.php');
+    if (preg_match('/define\(\s*[\'"]LAB_DB_PATH[\'"]\s*,\s*[\'"]([^\'"]+)[\'"]/', $configText, $m)) {
+        $dbPath = $m[1];
+    }
+}
+
+$dbName    = basename($dbPath);
+$dbDir     = basename(dirname($dbPath));
+$inWebRoot = strpos(str_replace('\\', '/', realpath(dirname($dbPath)) ?: dirname($dbPath)),
+                    str_replace('\\', '/', realpath(__DIR__) ?: __DIR__)) === 0;
+
+if (!$inWebRoot) {
+    check('Database not downloadable', 'ok',
+        'The database lives outside the application directory, so no URL reaches it. This is the safest arrangement.');
+} elseif (!file_exists($dbPath)) {
+    check('Database not downloadable', 'warn',
+        'There is no database yet, so there is nothing to test. Run this page again after install.php and before deleting it.');
+} else {
+    $probe      = probe_url($dbDir . '/' . $dbName);
+    $looksLikeDb = strpos($probe['body'], 'SQLite format') === 0;
+    $denied      = in_array($probe['code'], [401, 403, 404], true);
+
+    if ($looksLikeDb) {
+        check('Database not downloadable', 'fail',
+            'ANYONE CAN DOWNLOAD THE DATABASE. ' . $probe['url'] . ' returned the database file itself (HTTP '
+            . $probe['code'] . '). It holds every charge and every administrator password hash. '
+            . 'This server is ignoring data/.htaccess. Deny web access to the ' . $dbDir
+            . '/ directory in the server configuration, or move the database outside the web root '
+            . 'by creating config.php beside index.php (see DEPLOY.md). Do not put real data in until this says ok.');
+    } elseif ($denied) {
+        check('Database not downloadable', 'ok',
+            $probe['url'] . ' returned HTTP ' . $probe['code'] . '. The database cannot be fetched over the web.');
+    } elseif ($probe['code'] === 200) {
+        check('Database not downloadable', 'warn',
+            $probe['url'] . ' returned HTTP 200 but not database content. Something is rewriting the request. '
+            . 'Confirm by hand that the file cannot be downloaded.');
+    } elseif (PHP_SAPI === 'cli-server') {
+        // The built-in server handles one request at a time, so it cannot
+        // answer this page's request for another file. Any real web server can.
+        check('Database not downloadable', 'warn',
+            'Cannot be tested on PHP\'s built-in server, which handles one request at a time and so cannot '
+            . 'answer a request from within this page. On the campus server this test runs properly. '
+            . 'Meanwhile: on this server the database IS downloadable, because the built-in server reads no '
+            . '.htaccess at all. That is expected locally and would be serious anywhere else.');
+    } else {
+        check('Database not downloadable', 'warn',
+            'Could not test automatically (' . ($probe['error'] ?: 'HTTP ' . $probe['code']) . '). '
+            . 'Open ' . $probe['url'] . ' in a browser yourself: you should get "forbidden" or "not found", never a download.');
+    }
+}
 
 // --- Nice to have ----------------------------------------------------------
 check('Date/time default', ini_get('date.timezone') ? 'ok' : 'warn', ini_get('date.timezone') ?: 'Not set in php.ini. The application sets America/Chicago itself, so this is informational.');

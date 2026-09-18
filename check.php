@@ -20,11 +20,20 @@ function check(string $label, string $status, string $detail): void
 }
 
 // --- PHP version -----------------------------------------------------------
-$phpOk = version_compare(PHP_VERSION, '7.4.0', '>=');
+// Eight is the floor. The code is written to run on anything from there up and
+// is tested on the current release; a warning rather than a failure below the
+// tested range, because "older than we have tried" is worth saying out loud
+// without refusing to run.
+$phpOk     = version_compare(PHP_VERSION, '8.0.0', '>=');
+$phpTested = version_compare(PHP_VERSION, '8.3.0', '>=');
 check(
     'PHP version',
-    $phpOk ? 'ok' : 'fail',
-    PHP_VERSION . ($phpOk ? ' (7.4 or later required)' : ' — this application requires PHP 7.4 or later')
+    $phpOk ? ($phpTested ? 'ok' : 'warn') : 'fail',
+    PHP_VERSION . ($phpOk
+        ? ($phpTested
+            ? ' (8.0 or later required)'
+            : ' — runs, but the application is tested on 8.3 and later. Worth upgrading.')
+        : ' — this application requires PHP 8.0 or later')
 );
 
 // --- PDO and the SQLite driver --------------------------------------------

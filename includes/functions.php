@@ -36,7 +36,6 @@ set_exception_handler(function (Throwable $e): void {
     header('Retry-After: 30');
 
     // The calendar and anything else expecting JSON should get JSON back.
-    // strpos rather than str_contains: this has to run on PHP 7.4.
     $wantsJson = strpos((string) ($_SERVER['HTTP_ACCEPT'] ?? ''), 'application/json') !== false
         || basename((string) ($_SERVER['SCRIPT_NAME'] ?? '')) === 'api.php';
 

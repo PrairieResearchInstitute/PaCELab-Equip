@@ -503,18 +503,50 @@ $sources = array_merge(
     glob(__DIR__ . '/../includes/*.php') ?: [],
     glob(__DIR__ . '/../admin/*.php') ?: []
 );
-$php8only = ['str_contains', 'str_starts_with', 'str_ends_with', 'array_is_list'];
+// The campus server runs a current PHP, so the danger is no longer using
+// something too new. It is using something a newer PHP has taken away: every
+// one of these still runs today while printing a deprecation notice into the
+// page, and stops running in a release after that.
+$removed = [
+    'utf8_encode'     => 'deprecated in 8.2',
+    'utf8_decode'     => 'deprecated in 8.2',
+    'create_function' => 'removed in 8.0',
+    'each'            => 'removed in 8.0',
+    'money_format'    => 'removed in 8.0',
+    'strftime'        => 'deprecated in 8.1',
+    'gmstrftime'      => 'deprecated in 8.1',
+    'date_sunrise'    => 'deprecated in 8.1',
+    'mhash'           => 'removed in 8.0',
+];
 $offenders = [];
 foreach ($sources as $file) {
     $text = (string) file_get_contents($file);
-    foreach ($php8only as $fn) {
-        if (preg_match('/(?<![\w$>])' . $fn . '\s*\(/', $text)) {
-            $offenders[] = basename($file) . ': ' . $fn . '()';
+    foreach ($removed as $fn => $when) {
+        if (preg_match('/(?<![\w$>\'"])' . $fn . '\s*\(/', $text)) {
+            $offenders[] = basename($file) . ': ' . $fn . '() ' . $when;
         }
     }
+    // Deprecated in 8.2, and the kind of thing that slips into a heredoc.
+    if (preg_match('/\$\{[a-zA-Z_]\w*\}/', $text)) {
+        $offenders[] = basename($file) . ': ${var} interpolation, deprecated in 8.2';
+    }
+    // Deprecated in 8.4: a default of null without the parameter being nullable.
+    if (preg_match('/function\s+\w+\s*\([^)]*?(?<!\?)\b(string|int|float|bool|array|iterable|object)\s+\$\w+\s*=\s*null/s', $text)) {
+        $offenders[] = basename($file) . ': implicitly nullable parameter, deprecated in 8.4';
+    }
 }
-ok('nothing calls a function PHP 7.4 does not have', $offenders === [],
-    implode(', ', $offenders));
+ok('nothing calls what a newer PHP has taken away', $offenders === [],
+    implode('; ', $offenders));
+
+// Everything reaching htmlspecialchars() has been cast first. Passing null to
+// an internal parameter has been deprecated since 8.1, and h() is the one
+// funnel every screen puts its values through.
+$hBody = (string) file_get_contents(__DIR__ . '/../includes/functions.php');
+ok('the escaper casts before it escapes',
+    preg_match('/function h\(\$value\): string\s*\{\s*return htmlspecialchars\(\(string\) \$value/', $hBody) === 1);
+same('so it survives a null', '', h(null));
+same('and a number', '42', h(42));
+same('and escapes what matters', '&lt;script&gt;&amp;&quot;', h('<script>&"'));
 
 // A value reaching SQL any way other than as a bound parameter. Two shapes are
 // allowed and nothing else: a variable holding SQL being assembled ($sql), and

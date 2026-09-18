@@ -30,6 +30,18 @@ Copy these, keeping the folder structure:
 | `.git/`, `.claude/`, `.gitignore`, `.gitattributes` | Not part of the application. |
 | `*.docx` | The spec and the README. |
 
+## What the server needs
+
+PHP 8.0 or later with PDO SQLite and sessions. Nothing else — no Composer, no
+extensions to install, no database server to provision.
+
+It is developed and tested on PHP 8.3, and driven end to end with
+`error_reporting=E_ALL` and `display_errors` on: no deprecation, no warning and
+no notice comes out of any screen. The suite also refuses anything a newer PHP
+has taken away — `utf8_encode`, `strftime`, `${var}` interpolation, implicitly
+nullable parameters — so moving to 8.4 or 8.5 should be uneventful. `check.php`
+warns if the server is older than 8.3 while still letting it run.
+
 ## Installing
 
 1. Open `check.php`. It tests PHP, PDO SQLite, sessions, and whether it can

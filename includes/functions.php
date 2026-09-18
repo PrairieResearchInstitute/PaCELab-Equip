@@ -275,12 +275,21 @@ function page_header(string $title, array $options = []): void
     $base = base_url();
     $lab  = current_lab_name();
     $nav  = $options['nav'] ?? '';
+
+    // The browser tab wants to say two things: which screen, and which
+    // laboratory. The laboratory dashboard is titled after the laboratory, so
+    // saying it twice reads as a mistake; there, and anywhere without a
+    // laboratory yet, the application's own name is the more useful second half.
+    $qualifier = ($lab !== '' && $lab !== $title) ? $lab : setting('lab_name', 'Shared Laboratory Equipment');
+    $tabTitle  = $qualifier !== '' && $qualifier !== $title
+        ? $title . ' · ' . $qualifier
+        : $title;
     ?><!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-<title><?= h($title) ?> &middot; <?= h($lab) ?></title>
+<title><?= h($tabTitle) ?></title>
 
 <!-- The approved Illinois web theme. Both files come from Illinois-run hosts.
      See the README: this is the one outside dependency in the application, and

@@ -476,6 +476,26 @@ ok('the other laboratory is not told about this one\'s instruments',
     !in_array('GC-MS', $names, true) && !in_array('ICP-MS', $names, true));
 
 // ---------------------------------------------------------------------------
+heading('The browser tab says where you are');
+
+/** The <title> a screen would render. */
+function tab_title(string $heading): string
+{
+    ob_start();
+    page_header($heading);
+    $html = (string) ob_get_clean();
+    return preg_match('/<title>(.*?)<\/title>/s', $html, $m) ? html_entity_decode(trim($m[1])) : '';
+}
+
+acting_as('Ruiz', $labA);
+same('a screen is named, then the laboratory', 'Use entry · Alpha Lab', tab_title('Use entry'));
+same('the laboratory dashboard names the application rather than repeating itself',
+    'Alpha Lab · Test Installation', tab_title('Alpha Lab'));
+acting_as('Stranger');
+same('with no laboratory yet, the application names itself',
+    'Choose a laboratory · Test Installation', tab_title('Choose a laboratory'));
+
+// ---------------------------------------------------------------------------
 heading('The code runs on the server it is going to');
 
 $sources = array_merge(

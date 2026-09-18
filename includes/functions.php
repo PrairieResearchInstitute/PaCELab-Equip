@@ -760,8 +760,8 @@ function compose_lab_group_email(array $item, string $kind): array
     $body[] = 'All,';
     $body[] = '';
     $body[] = $kind === 'down'
-        ? $item['name'] . ' is out of service and cannot be booked or charged until it is back.'
-        : $item['name'] . ' has been retired and is no longer available.';
+        ? $item['name'] . ' in ' . $lab . ' is out of service and cannot be booked or charged until it is back.'
+        : $item['name'] . ' in ' . $lab . ' has been retired and is no longer available.';
 
     if (trim((string) $item['status_note']) !== '') {
         $body[] = '';

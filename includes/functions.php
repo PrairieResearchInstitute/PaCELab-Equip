@@ -243,6 +243,33 @@ function site_pages(): array
  * useful thing a menu can offer is the way back to the overview. Only the exact
  * page you are looking at is worth leaving out.
  */
+/**
+ * Where to send somebody once they have said who they are.
+ *
+ * Only a page of this application, never an address somewhere else: a crafted
+ * link should not be able to bounce anybody off campus the moment they type
+ * their name. Same reasoning as safe_next() in admin/login.php, for the pages
+ * outside the administrative panel.
+ *
+ * The fallback is the laboratory chooser, because that is the landing page:
+ * which laboratory you are in decides what every other screen shows.
+ */
+function safe_return_to(?string $raw, string $fallback = 'home.php'): string
+{
+    $raw = (string) $raw;
+    if ($raw === '' || preg_match('#^[a-z][a-z0-9+.-]*:|^//#i', $raw)) {
+        return $fallback;
+    }
+
+    $file = basename((string) (parse_url($raw, PHP_URL_PATH) ?: ''));
+    if (!in_array($file, ['home.php', 'index.php', 'lab.php', 'schedule.php', 'report.php'], true)) {
+        return $fallback;
+    }
+
+    $query = parse_url($raw, PHP_URL_QUERY);
+    return $file . ($query ? '?' . $query : '');
+}
+
 function current_page_href(): string
 {
     $script = str_replace('\\', '/', (string) ($_SERVER['SCRIPT_NAME'] ?? ''));
@@ -973,7 +1000,7 @@ function require_lab(): array
     $base = base_url();
 
     if (identity_is_self_declared() && !have_user_name()) {
-        redirect($base . 'index.php');
+        redirect($base . 'index.php?next=' . rawurlencode(current_page_href()));
     }
 
     page_header('No laboratory', ['nav' => '', 'mainClass' => 'page narrow']);

@@ -18,7 +18,7 @@ require_installed();
 
 if (identity_is_self_declared() && !have_user_name()) {
     flash('Enter your last name first, so bookings carry a holder.', 'notice');
-    redirect('index.php');
+    redirect('index.php?next=' . rawurlencode(current_page_href()));
 }
 
 $equipment = active_equipment();

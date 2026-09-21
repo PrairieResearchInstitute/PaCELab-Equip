@@ -58,7 +58,7 @@ if (identity_is_self_declared() && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_P
     $name = trim((string) ($_POST['user_name'] ?? ''));
     if ($name !== '') {
         set_current_user_name($name);
-        redirect('index.php');
+        redirect(safe_return_to($_POST['next'] ?? null, 'home.php'));
     }
     flash('Enter your last name so charges can be attributed.', 'error');
     redirect('index.php');
@@ -73,6 +73,7 @@ if (identity_is_self_declared() && !have_user_name()) {
       <form method="post" class="card form">
         <?= csrf_field() ?>
         <input type="hidden" name="action" value="identify">
+        <input type="hidden" name="next" value="<?= h(safe_return_to($_GET['next'] ?? null, 'index.php')) ?>">
         <div class="field">
           <label for="user_name">Last name</label>
           <input type="text" id="user_name" name="user_name" required autofocus autocomplete="family-name">

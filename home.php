@@ -18,7 +18,7 @@ require_installed();
 // Not require_lab(): somebody with no laboratory at all still belongs on this
 // screen, because this is where they are told so.
 if (identity_is_self_declared() && !have_user_name()) {
-    redirect('index.php');
+    redirect('index.php?next=home.php');
 }
 
 $mine   = labs_for_person();

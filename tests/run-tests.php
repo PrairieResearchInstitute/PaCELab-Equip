@@ -476,6 +476,23 @@ ok('the other laboratory is not told about this one\'s instruments',
     !in_array('GC-MS', $names, true) && !in_array('ICP-MS', $names, true));
 
 // ---------------------------------------------------------------------------
+heading('Saying who you are returns you where you were going');
+
+same('the chooser is where somebody lands by default', 'home.php', safe_return_to(null));
+same('an empty return goes there too', 'home.php', safe_return_to(''));
+same('a screen asked for is the screen returned to', 'schedule.php', safe_return_to('schedule.php'));
+same('somebody who opened use entry stays on use entry', 'index.php',
+    safe_return_to('index.php', 'index.php'));
+same('a query string survives', 'schedule.php?equipment_id=4',
+    safe_return_to('schedule.php?equipment_id=4'));
+// An open redirect is how a plausible link turns into somebody else's sign-in page.
+same('another site is refused',      'home.php', safe_return_to('https://evil.example.com/steal'));
+same('a protocol-relative one too',  'home.php', safe_return_to('//evil.example.com'));
+same('javascript: is refused',       'home.php', safe_return_to('javascript:alert(1)'));
+same('so is a walk up the tree',     'home.php', safe_return_to('../admin/settings.php'));
+same('and a page that does not exist', 'home.php', safe_return_to('nonsense.php'));
+
+// ---------------------------------------------------------------------------
 heading('The browser tab says where you are');
 
 /** The <title> a screen would render. */

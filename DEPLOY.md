@@ -36,7 +36,7 @@ and walking every screen. It came up clean, with no PHP diagnostics of any kind.
 |---|---|
 | `tools/` | 84 MB of Windows PHP. The server has its own. |
 | `data/` | Your local database and its install lock. Copying it would put local test data on the server, and the lock would stop the installer. |
-| `START HERE.bat`, `RUN TESTS.bat`, `Open Lab Equipment.url` | Windows launchers. Meaningless on a web server. |
+| `START HERE.bat`, `RUN TESTS.bat`, `BUILD FOR SERVER.bat` | Windows launchers. Meaningless on a web server. |
 | `seed-demo.php` | Creates fake instruments and charges. Do not put this where anybody can reach it. |
 | `tests/` | Optional. Harmless, but it belongs with the source rather than on the server. |
 | `.git/`, `.claude/`, `.gitignore`, `.gitattributes` | Not part of the application. |
@@ -120,7 +120,7 @@ Double-click `RUN TESTS.bat`, or run
 php tests/run-tests.php
 ```
 
-96 checks. It builds a scratch database in the temporary folder and never opens
+110 checks. It builds a scratch database in the temporary folder and never opens
 `data/lab.sqlite`, so it is safe to run against a live installation.
 
 ## If the administrator password is lost

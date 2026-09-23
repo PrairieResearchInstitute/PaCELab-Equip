@@ -9,63 +9,19 @@ REM
 REM  Leave the console window open while you use the application. Closing it
 REM  stops the server.
 REM
-REM  PHP travels inside this folder, in tools\php, so the system runs on any
-REM  computer the folder syncs to. It used to live only in this computer's
-REM  %LOCALAPPDATA%\php83, which is still used if the folder copy is missing.
+REM  The work is done by tools\start-server.ps1, because finding out whether a
+REM  server on a port is OURS needs more than batch can do. It is not enough to
+REM  ask whether the port is busy: PRI Facilities Request also serves itself on
+REM  8080, and answering "something is listening, that must be us" sent the
+REM  browser to that application instead, which replied 404 for /home.php.
 REM ===========================================================================
 
-setlocal
-set "PHPDIR=%~dp0tools\php\"
-if not exist "%PHPDIR%php.exe" set "PHPDIR=%LOCALAPPDATA%\php83\"
-set "PHP=%PHPDIR%php.exe"
-set "PORT=8080"
-set "URL=http://localhost:%PORT%/home.php"
+cd /d "%~dp0"
+powershell -NoProfile -ExecutionPolicy Bypass -File "tools\start-server.ps1"
 
-title Lab Equipment System - server (keep this window open)
-
-if not exist "%PHP%" (
+if errorlevel 1 (
   echo.
-  echo   PHP was not found. Looked in:
-  echo     %~dp0tools\php\php.exe
-  echo     %LOCALAPPDATA%\php83\php.exe
-  echo.
-  echo   If this folder is on OneDrive, it has probably not finished downloading.
-  echo   Right-click the folder, choose "Always keep on this device", wait for the
-  echo   green checks, and start this again.
+  echo   The server did not start. The message above says why.
   echo.
   pause
-  exit /b 1
 )
-
-cd /d "%~dp0"
-
-REM If a server is already listening on the port, just open the browser at it
-REM rather than starting a second one that would fail to bind.
-netstat -ano | findstr /r /c:"LISTENING" | findstr /c:":%PORT% " >nul 2>&1
-if %errorlevel%==0 (
-  echo.
-  echo   A server is already running on port %PORT%. Opening the browser.
-  echo.
-  start "" "%URL%"
-  exit /b 0
-)
-
-echo.
-echo   Shared Laboratory Equipment System
-echo   ==================================
-echo.
-echo   Serving : %~dp0
-echo   Open at : %URL%
-echo   PHP     : %PHP%
-echo.
-echo   Not installed yet? Go to http://localhost:%PORT%/install.php
-echo.
-echo   KEEP THIS WINDOW OPEN. Closing it stops the server.
-echo.
-
-start "" "%URL%"
-REM extension_dir is given here rather than in php.ini, so the ini names no
-REM path on any one computer.
-"%PHP%" -c "%PHPDIR%php.ini" -d "extension_dir=%PHPDIR%ext" -S localhost:%PORT% -t "%~dp0."
-
-endlocal

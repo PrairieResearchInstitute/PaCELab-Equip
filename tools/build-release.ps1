@@ -46,7 +46,8 @@ $files = @(
 # Named rather than merely omitted, so that a mistake is loud.
 $forbidden = @('seed-demo.php', 'data', 'tools', '.git', '.claude', 'tests',
                'START HERE.bat', 'RUN TESTS.bat', 'BUILD FOR SERVER.bat',
-               'FORGOT ADMIN PASSWORD.bat', 'STOP SERVER.bat')
+               'FORGOT ADMIN PASSWORD.bat', 'STOP SERVER.bat',
+               'SETUP ON THIS PC.bat')
 
 if (Test-Path $out) { Remove-Item $out -Recurse -Force }
 New-Item -ItemType Directory -Path $out -Force | Out-Null

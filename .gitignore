@@ -43,3 +43,7 @@ Thumbs.db
 
 # PHP runtime copied into the folder so it runs on any computer; binaries, not source
 tools/php/
+
+# The supervisor writes these; they are machine-local noise
+data/server.log
+data/php-stderr.log

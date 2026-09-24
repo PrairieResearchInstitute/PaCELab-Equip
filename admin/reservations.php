@@ -85,7 +85,7 @@ $sql = 'SELECT r.*, e.name AS equipment_name
           FROM reservations r
           JOIN equipment e ON e.equipment_id = r.equipment_id
          WHERE e.lab_id = :lab AND r.end_datetime ' . ($scope === 'past' ? '<' : '>=') . ' :now';
-$params = ['now' => $now];
+$params = ['now' => $now, 'lab' => current_lab_id()];
 if ($filterEquip) {
     $sql .= ' AND r.equipment_id = :eq';
     $params['eq'] = $filterEquip;

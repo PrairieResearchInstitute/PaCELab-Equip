@@ -34,7 +34,7 @@ $onNow = db_all(
        JOIN equipment e ON e.equipment_id = r.equipment_id
       WHERE e.lab_id = :lab AND r.start_datetime <= :now AND r.end_datetime > :now
       ORDER BY e.name COLLATE NOCASE',
-    ['now' => $now]
+    ['now' => $now, 'lab' => current_lab_id()]
 );
 
 $laterToday = db_all(
@@ -42,7 +42,7 @@ $laterToday = db_all(
        JOIN equipment e ON e.equipment_id = r.equipment_id
       WHERE e.lab_id = :lab AND r.start_datetime > :now AND r.start_datetime < :endOfDay
       ORDER BY r.start_datetime LIMIT 8',
-    ['now' => $now, 'endOfDay' => $today . ' 23:59:59']
+    ['now' => $now, 'endOfDay' => $today . ' 23:59:59', 'lab' => current_lab_id()]
 );
 
 $myRecent = [];

@@ -589,7 +589,31 @@ foreach ($sources as $file) {
 ok('no screen glues a value into an SQL string', $notPrepared === [],
     implode(', ', $notPrepared));
 
+// Every named placeholder must be bound in the file that writes it.
+//
+// This is the check that would have caught the Reservations screen. SQLite
+// binds a missing named parameter as NULL rather than raising, so
+// "WHERE lab_id = :lab" with no :lab silently matches nothing: no error, no
+// warning, just an empty table for as long as nobody notices. The dashboard's
+// Today panel had the same fault in two queries.
+$unbound = [];
+foreach ($sources as $file) {
+    $text = (string) file_get_contents($file);
+    preg_match_all('/[ (,]:([a-z][a-zA-Z_]*)/', $text, $m);
+    foreach (array_unique($m[1]) as $name) {
+        $q = preg_quote($name, '/');
+        $bound = preg_match('/[\'"]' . $q . '[\'"]\s*=>/', $text)
+              || preg_match('/\[[\'"]' . $q . '[\'"]\]\s*=/', $text);
+        if (!$bound) {
+            $unbound[] = basename($file) . ': :' . $name;
+        }
+    }
+}
+ok('every named placeholder is bound where it is used', $unbound === [],
+    implode(', ', $unbound));
+
 $badPlaceholders = [];
+
 foreach ($sources as $file) {
     foreach (explode("\n", (string) file_get_contents($file)) as $n => $line) {
         if (strpos($line, '$placeholders =') === false) {

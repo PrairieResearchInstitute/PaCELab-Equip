@@ -48,3 +48,6 @@ tools/php/
 data/server.log
 data/php-stderr.log
 data/backup.log
+data/.installed
+data/.htaccess
+data/web.config

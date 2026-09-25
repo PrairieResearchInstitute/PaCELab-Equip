@@ -1,0 +1,44 @@
+name: CI
+
+# Syntax-checks every PHP file and runs the test suite.
+#
+# Ubuntu bills at 1x and this job takes about a minute, so it runs on every
+# push. That is affordable in a way the rest of this account's history was
+# not: macOS runners bill at 10x and were three quarters of the minutes
+# spent between 4 and 13 September, and stored artifacts filled the 500 MB
+# account-wide quota. Neither applies here - this job runs on Linux and
+# stores nothing, so there is no upload-artifact step and no release step.
+#
+# The test run is the step that matters. A workflow that only lints syntax
+# lets broken logic through: WebDesigner shipped installers for nine days
+# while its renderer would not compile, because the job being run was not
+# the one that checked.
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    name: PHP lint and tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@v4
+
+      # The application requires 8.0 or later and is developed against 8.3.
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          coverage: none
+
+      # tools/ holds PowerShell, not PHP, so there is nothing to lint there.
+      - name: Syntax check every PHP file
+        run: |
+          set -e
+          find . -name "*.php" -not -path "./tools/*" -print0 | xargs -0 -n1 php -l
+
+      # 111 checks, no dependencies, exits non-zero on failure.
+      - name: Run the test suite
+        run: php tests/run-tests.php

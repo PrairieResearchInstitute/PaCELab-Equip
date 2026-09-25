@@ -47,3 +47,4 @@ tools/php/
 # The supervisor writes these; they are machine-local noise
 data/server.log
 data/php-stderr.log
+data/backup.log

@@ -35,6 +35,26 @@ if (-not (Test-Path $php)) {
     exit 1
 }
 
+function Backup-IfDue {
+    # One a day is enough. The marker is the newest backup's date, so a machine
+    # that is off overnight still gets one the next time it is on.
+    try {
+        $pathFile = Join-Path $root 'data\backup-path.txt'
+        $dest = if (Test-Path $pathFile) { (Get-Content $pathFile -Raw).Trim() }
+                else { Join-Path (Split-Path -Parent $root) 'PaCELab Equip Backups' }
+        $today = Get-Date -Format 'yyyy-MM-dd'
+        if (Test-Path $dest) {
+            $have = Get-ChildItem $dest -Filter "lab-$today-*.sqlite" -ErrorAction SilentlyContinue
+            if ($have) { return }
+        }
+        Note "taking the daily backup"
+        & powershell -NoProfile -ExecutionPolicy Bypass -File `
+            ('"' + (Join-Path $PSScriptRoot 'backup.ps1') + '"') | Out-Null
+    } catch {
+        Note "backup attempt failed: $($_.Exception.Message)"
+    }
+}
+
 Note "supervisor started, port $Port, serving $root"
 
 # One supervisor only. A second would fight the first for the port.
@@ -69,9 +89,18 @@ try {
                  '-t', ('"' + $root + '"')
              )
         Note "php started, pid $($p.Id)"
-        $p.WaitForExit()
+
+        # Wake hourly while php runs, so the supervisor can also be the thing
+        # that takes the nightly backup. One process owning both means there is
+        # no second scheduled job to install, break, or forget about.
+        while (-not $p.HasExited) {
+            $null = $p.WaitForExit(3600000)
+            if (-not $p.HasExited) { Backup-IfDue }
+        }
+
         Note "php exited with $($p.ExitCode); restarting in 3s"
         Start-Sleep -Seconds 3
+        Backup-IfDue
     }
 }
 finally {

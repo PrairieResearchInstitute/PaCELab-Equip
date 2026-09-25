@@ -99,6 +99,52 @@ one that does not depend on server configuration — create `config.php` beside
 
 The directory must exist and be writable by the web server account.
 
+## The Studio: fixing the application without a code editor
+
+`admin/studio.php` lets an administrator edit the application's own source from
+inside it — the same idea, and the same safeguards, as the Studio in PRI
+Facilities Request. It exists so a problem on the campus server can be fixed by
+somebody who has a browser and a password but no checkout, no editor, and no
+way to copy files up.
+
+Read this before granting it, because it writes PHP that the next request runs.
+
+**What protects you**
+
+- **Confined.** A path is resolved and then checked to be inside the
+  application folder. Not string-matched — resolved — so `..`, a symbolic link
+  and a Windows short name all fail. `data/`, `tools/php/` and `dist/` are not
+  editable at all, so the database cannot be opened or overwritten.
+- **Checked.** PHP is parsed before it is written. A file that would white
+  screen the application is refused and nothing is saved.
+- **Reversible.** Every save copies the old file into `data/studio-backups`
+  first. Restore is one click.
+- **Recorded.** `data/studio-history.log` gets a line per save, refusal and
+  restore: who, what, when, and how many bytes changed.
+- **Granted separately.** Being an administrator is not enough. The
+  `may_edit_code` column defaults to 0, and **nobody can grant it to
+  themselves** — it takes a second administrator, or the console.
+
+**Granting it**
+
+From the Administrators screen, or when there is only one administrator:
+
+```bash
+php admin-recovery.php grant <username>
+```
+
+`revoke` takes it back.
+
+**What it does not protect against**
+
+Anyone holding the grant *and* an administrator password can run arbitrary code
+on the server as the web user. That is what the feature is for, and it is the
+reason to grant it to as few people as possible — ideally nobody, until the day
+something is broken and it is needed.
+
+If hosting policy does not allow it at all, delete `admin/studio.php` and
+`includes/studio.php` from the server. Nothing else depends on them.
+
 ## The one outside dependency
 
 The approved Illinois header and footer are web components loaded from

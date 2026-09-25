@@ -513,6 +513,99 @@ same('with no laboratory yet, the application names itself',
     'Choose a laboratory · Test Installation', tab_title('Choose a laboratory'));
 
 // ---------------------------------------------------------------------------
+heading('Editing the code from inside the application');
+
+require_once __DIR__ . '/../includes/studio.php';
+
+// The containment check is the whole security of this feature. It has to be
+// proved, not asserted: it decides whether a URL can reach outside the
+// application folder and rewrite something on the server.
+$root = studio_root();
+
+ok('a real source file resolves',            studio_resolve('includes/functions.php') !== null);
+ok('so does one in a subfolder',             studio_resolve('admin/users.php') !== null);
+ok('walking up with .. is refused',          studio_resolve('../../../windows/win.ini') === null);
+ok('so is a disguised walk',                 studio_resolve('includes/../../secrets.php') === null);
+ok('an absolute path outside is refused',    studio_resolve('C:/Windows/win.ini') === null);
+ok('a unix absolute path is refused',        studio_resolve('/etc/passwd') === null);
+ok('a null byte is refused',                 studio_resolve("includes/db.php\0.txt") === null);
+ok('the database is not editable',           studio_resolve('data/lab.sqlite') === null);
+ok('nor anything else under data',           studio_resolve('data/.htaccess') === null);
+ok('nor the bundled PHP runtime',            studio_resolve('tools/php/php.exe') === null);
+ok('an empty path is refused',               studio_resolve('') === null);
+ok('a directory is refused',                 studio_resolve('includes') === null);
+ok('a file that does not exist is refused',  studio_resolve('includes/nope.php') === null);
+
+// Everything the tree offers must itself resolve, or the rail would list
+// files the editor then refuses to open.
+$tree = studio_tree();
+ok('the tree lists the application source', count($tree) > 20);
+$unresolvable = [];
+foreach ($tree as $rel) {
+    if (studio_resolve($rel) === null) {
+        $unresolvable[] = $rel;
+    }
+}
+ok('everything it lists can be opened', $unresolvable === [], implode(', ', array_slice($unresolvable, 0, 5)));
+$leaked = array_filter($tree, function ($p) {
+    return strpos($p, 'data/') === 0 || strpos($p, 'tools/php/') === 0 || strpos($p, 'dist/') === 0;
+});
+ok('it lists nothing under data, dist or the runtime', $leaked === []);
+
+// A file that will not parse must cost a message, not the application.
+$good = studio_check('x.php', "<?php\nfunction a() { return 1; }\n");
+ok('valid PHP passes the check', $good['ok'] === true);
+$bad = studio_check('x.php', "<?php\nfunction a( { return 1;\n");
+ok('a syntax error is caught', $bad['ok'] === false);
+ok('and the message says where', strpos($bad['message'], 'line') !== false);
+ok('a missing brace is caught', studio_check('x.php', "<?php if (true) {\n")['ok'] === false);
+same('CSS is not parsed as PHP', true, studio_check('x.css', 'body { color: red }')['ok']);
+
+// Saving: refuse broken code, keep the old copy, and put it back on request.
+$scratch = 'studio-selftest.txt';
+$full    = $root . '/' . $scratch;
+file_put_contents($full, "one\n");
+[$okSave, $msg] = studio_save($scratch, "two\n");
+ok('a good save is written', $okSave && file_get_contents($full) === "two\n");
+ok('and the previous copy is kept', count(studio_backups($scratch)) >= 1);
+
+$php = 'studio-selftest.php';
+$phpFull = $root . '/' . $php;
+file_put_contents($phpFull, "<?php\nreturn 1;\n");
+[$okBad, $msgBad] = studio_save($php, "<?php\nfunction ( {\n");
+ok('broken PHP is refused', $okBad === false);
+ok('and the file on disk is untouched',
+   file_get_contents($phpFull) === "<?php\nreturn 1;\n");
+
+$copies = studio_backups($scratch);
+if ($copies) {
+    studio_restore($scratch, $copies[0]['name']);
+    ok('restoring puts the old content back', file_get_contents($full) === "one\n");
+} else {
+    ok('restoring puts the old content back', false, 'no backup to restore');
+}
+
+ok('a save outside the application is refused',
+   studio_save('../escaped.php', '<?php')[0] === false);
+
+@unlink($full);
+@unlink($phpFull);
+foreach (array_merge(studio_backups($scratch), studio_backups($php)) as $b) {
+    @unlink(studio_backup_dir() . '/' . $b['name']);
+}
+
+// The grant itself. An administrator is not automatically allowed in.
+db_run('INSERT INTO admin_users (username, password_hash, display_name, active, created_at, may_edit_code)
+        VALUES (?, ?, ?, 1, ?, 0)',
+    ['plain', password_hash('a-long-enough-password', PASSWORD_DEFAULT), 'Plain Admin', date('Y-m-d H:i:s')]);
+$plainId = (int) db()->lastInsertId();
+same('a new administrator may not edit code', 0,
+    (int) db_value('SELECT may_edit_code FROM admin_users WHERE user_id = ?', [$plainId]));
+db_run('UPDATE admin_users SET may_edit_code = 1 WHERE user_id = ?', [$plainId]);
+same('the grant can be given', 1,
+    (int) db_value('SELECT may_edit_code FROM admin_users WHERE user_id = ?', [$plainId]));
+
+// ---------------------------------------------------------------------------
 heading('The code runs on the server it is going to');
 
 $sources = array_merge(

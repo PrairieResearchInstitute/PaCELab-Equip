@@ -26,6 +26,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = (string) ($_POST['action'] ?? '');
     $userId = (int) ($_POST['user_id'] ?? 0);
 
+    if ($action === 'code') {
+        // Nobody may hand it to themselves. One person with an account and a
+        // browser should not be able to turn that into permission to rewrite
+        // the application; it takes a second administrator, or the console.
+        if ($userId === (int) $me['user_id']) {
+            flash('You cannot change your own code-editing grant. Ask another administrator, '
+                . 'or run: php admin-recovery.php grant <username>', 'error');
+            redirect('users.php');
+        }
+        $target = db_one('SELECT * FROM admin_users WHERE user_id = ?', [$userId]);
+        if (!$target) {
+            flash('No such administrator.', 'error');
+            redirect('users.php');
+        }
+        $now = (int) ($target['may_edit_code'] ?? 0) === 1 ? 0 : 1;
+        db_run('UPDATE admin_users SET may_edit_code = ? WHERE user_id = ?', [$now, $userId]);
+        flash($target['username'] . ($now ? ' may now edit the code.' : ' may no longer edit the code.'));
+        redirect('users.php');
+    }
+
     if ($action === 'add') {
         $username = trim((string) ($_POST['username'] ?? ''));
         $display  = trim((string) ($_POST['display_name'] ?? ''));
@@ -98,7 +118,7 @@ admin_header('users', 'Administrators');
   <div class="card card-tight">
     <div class="table-wrap">
       <table class="data">
-        <thead><tr><th>Username</th><th>Name</th><th>Added</th><th>Last signed in</th><th></th></tr></thead>
+        <thead><tr><th>Username</th><th>Name</th><th>Added</th><th>Last signed in</th><th>May edit code</th><th></th></tr></thead>
         <tbody>
         <?php foreach ($admins as $row): ?>
           <tr<?= (int) $row['active'] === 0 ? ' class="is-locked"' : '' ?>>
@@ -110,6 +130,20 @@ admin_header('users', 'Administrators');
             <td><?= h($row['display_name']) ?></td>
             <td class="nowrap"><?= h(pretty_date($row['created_at'])) ?></td>
             <td class="nowrap"><?= $row['last_login'] ? h(pretty_datetime($row['last_login'])) : '<span class="muted">never</span>' ?></td>
+            <td class="nowrap">
+              <?php
+                // Editing the application is a second grant, not a consequence of
+                // being an administrator. It gets its own column so that who holds
+                // it is obvious without opening anything.
+                $hasCode = (int) ($row['may_edit_code'] ?? 0) === 1;
+              ?>
+              <form method="post" onsubmit="return confirm('<?= $hasCode ? 'Remove' : 'Grant' ?> code editing for <?= h($row['username']) ?>?');">
+                <?= csrf_field() ?>
+                <input type="hidden" name="action" value="code">
+                <input type="hidden" name="user_id" value="<?= (int) $row['user_id'] ?>">
+                <button type="submit" class="button <?= $hasCode ? '' : 'button-secondary ' ?>button-small"><?= $hasCode ? 'Granted' : 'Not granted' ?></button>
+              </form>
+            </td>
             <td class="nowrap">
               <div class="button-row">
                 <a class="button button-secondary button-small" href="?reset=<?= (int) $row['user_id'] ?>">Reset password</a>

@@ -101,6 +101,21 @@ folder; two writers produce OneDrive conflict copies and lose charges.
 
 ---
 
+## The Studio
+
+`admin/studio.php` edits the application's own source from inside it, for the
+day something is wrong on the server and nobody with a code editor is around.
+Four properties hold it together and none of them is optional: **confined** (a
+path is resolved, then checked to be inside the app folder — never
+string-matched), **checked** (PHP is parsed before it is written; a file that
+would white screen the site is refused), **reversible** (the old copy is kept),
+**recorded** (who, what, when, byte delta).
+
+It is granted by the `may_edit_code` column, which defaults to 0, and the web
+interface refuses to let anybody grant it to themselves. If you change anything
+in `includes/studio.php`, run the suite: thirteen of its checks exist purely to
+prove the containment cannot be walked out of.
+
 ## Backups
 
 `tools/backup.ps1` uses `VACUUM INTO`, not a file copy — copying a SQLite file

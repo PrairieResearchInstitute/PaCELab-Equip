@@ -225,7 +225,10 @@ function schema_statements(): array
             display_name  TEXT NOT NULL DEFAULT \'\',
             active        INTEGER NOT NULL DEFAULT 1,
             created_at    TEXT NOT NULL,
-            last_login    TEXT
+            last_login    TEXT,
+            -- Editing the code of this application is granted separately from
+            -- being an administrator, and defaults to nobody.
+            may_edit_code INTEGER NOT NULL DEFAULT 0
         )',
 
         'CREATE TABLE IF NOT EXISTS settings (
@@ -266,6 +269,43 @@ function schema_statements(): array
  * The short code lists, seeded with the vocabulary PRI Facilities already uses
  * so the two systems describe an instrument the same way.
  */
+/**
+ * Columns added after the first release.
+ *
+ * CREATE TABLE IF NOT EXISTS does nothing at all to a table that already
+ * exists, so a database made before a column was added never gets it. This
+ * runs on every start, costs one PRAGMA per table listed, and adds only what
+ * is missing. Adding a column is the one schema change SQLite does cheaply
+ * and without rewriting the table.
+ */
+function schema_migrate(): void
+{
+    $wanted = [
+        'admin_users' => [
+            'may_edit_code' => 'INTEGER NOT NULL DEFAULT 0',
+        ],
+    ];
+
+    foreach ($wanted as $table => $columns) {
+        $have = [];
+        try {
+            foreach (db_all('PRAGMA table_info(' . $table . ')') as $col) {
+                $have[$col['name']] = true;
+            }
+        } catch (Throwable $e) {
+            continue;                       // table not there yet; install will make it
+        }
+        if (!$have) {
+            continue;
+        }
+        foreach ($columns as $name => $decl) {
+            if (!isset($have[$name])) {
+                db_run('ALTER TABLE ' . $table . ' ADD COLUMN ' . $name . ' ' . $decl);
+            }
+        }
+    }
+}
+
 function seed_picklists(): array
 {
     return [

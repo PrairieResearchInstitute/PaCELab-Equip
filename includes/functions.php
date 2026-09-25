@@ -218,6 +218,11 @@ function require_installed(): void
     if (!db_installed()) {
         redirect(base_url() . 'install.php');
     }
+
+    // Bring an older database up to the current shape. Cheap, idempotent, and
+    // the alternative is a column that only exists on fresh installations.
+    require_once __DIR__ . '/schema.php';
+    schema_migrate();
 }
 
 /**
@@ -511,6 +516,7 @@ function admin_pages(): array
         'emails'       => ['Message log',   'emails.php'],
         'settings'     => ['Interface text','settings.php'],
         'users'        => ['Administrators','users.php'],
+        'studio'       => ['Studio',         'studio.php'],
     ];
 }
 

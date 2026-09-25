@@ -150,6 +150,28 @@ switch ($command) {
 
     // -----------------------------------------------------------------------
     // Locked out by the throttle rather than by a forgotten password.
+    case 'grant':
+    case 'revoke':
+        $username = $argv[2] ?? '';
+        if ($username === '') {
+            echo "Which account? Usage: php admin-recovery.php " . $command . " <username>\n\n";
+            show_admins();
+            exit(1);
+        }
+        $admin = db_one('SELECT * FROM admin_users WHERE username = ?', [$username]);
+        if (!$admin) {
+            echo "No account called '" . $username . "'.\n\n";
+            show_admins();
+            exit(1);
+        }
+        $on = $command === 'grant' ? 1 : 0;
+        db_run('UPDATE admin_users SET may_edit_code = ? WHERE user_id = ?', [$on, $admin['user_id']]);
+        echo $username . ($on
+            ? " may now edit the application from the Studio screen.\n"
+            : " may no longer edit the application.\n");
+        echo "This is the one grant the web interface will not let anybody give themselves.\n";
+        break;
+
     case 'unlock':
         $username = $argv[2] ?? '';
         $count = (int) db_value('SELECT COUNT(*) FROM login_attempts WHERE succeeded = 0'
@@ -171,6 +193,10 @@ switch ($command) {
         echo "      off and it is asked for without being echoed.\n\n";
         echo "  php admin-recovery.php add <username> \"Display Name\" [\"password\"]\n";
         echo "      Create a new administrator, for when there are none left.\n\n";
+        echo "  php admin-recovery.php grant <username>\n";
+        echo "      Let this administrator edit the application from the Studio screen.\n\n";
+        echo "  php admin-recovery.php revoke <username>\n";
+        echo "      Take that back.\n\n";
         echo "  php admin-recovery.php unlock [username]\n";
         echo "      Clear failed sign-in attempts when the throttle is in the way.\n\n";
         echo "This tool refuses to run over the web.\n";

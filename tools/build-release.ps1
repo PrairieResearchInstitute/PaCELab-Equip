@@ -34,17 +34,18 @@ $files = @(
     'check.php', 'install.php', 'admin-recovery.php',
     'DEPLOY.md',
     'includes\auth.php', 'includes\db.php', 'includes\functions.php', 'includes\schema.php',
+    'includes\studio.php',
     'includes\.htaccess', 'includes\web.config',
     'assets\style.css', 'assets\app.js', 'assets\calendar.js',
     'admin\index.php', 'admin\login.php', 'admin\logout.php', 'admin\labs.php',
     'admin\equipment.php', 'admin\grants.php', 'admin\records.php', 'admin\reservations.php',
     'admin\costs.php', 'admin\emails.php', 'admin\batches.php', 'admin\units.php',
-    'admin\users.php', 'admin\settings.php'
+    'admin\users.php', 'admin\settings.php', 'admin\studio.php'
 )
 
 # --- What must never ship ----------------------------------------------------
 # Named rather than merely omitted, so that a mistake is loud.
-$forbidden = @('seed-demo.php', 'data', 'tools', '.git', '.claude', 'tests',
+$forbidden = @('seed-demo.php', 'data', 'tools', '.git', '.github', '.claude', 'tests',
                'START HERE.bat', 'RUN TESTS.bat', 'BUILD FOR SERVER.bat',
                'FORGOT ADMIN PASSWORD.bat', 'STOP SERVER.bat',
                'SETUP ON THIS PC.bat', 'BACK UP NOW.bat', 'AGENTS.md')

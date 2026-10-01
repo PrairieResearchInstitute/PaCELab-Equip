@@ -24,6 +24,17 @@ if (PHP_SAPI !== 'cli') {
 
 // A database of its own, thrown away at the end. Defined before anything that
 // would otherwise open data/lab.sqlite.
+/*
+ * This harness builds a throwaway SQLite file and points LAB_DB_PATH at it.
+ * A Postgres connection ignores LAB_DB_PATH entirely, so if .env said pgsql
+ * these tests would run against the real database and write to it. Force
+ * sqlite for the duration rather than trust whatever .env happens to say.
+ *
+ * Exercising the Postgres path needs its own throwaway database; see
+ * db/postgres/README for why that is not this file's job.
+ */
+putenv('PACELAB_DRIVER=sqlite');
+
 $tempDb = sys_get_temp_dir() . '/lab-tests-' . getmypid() . '.sqlite';
 foreach (glob(sys_get_temp_dir() . '/lab-tests-*.sqlite*') ?: [] as $stale) {
     @unlink($stale);                    // leftovers from a previous run

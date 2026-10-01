@@ -83,12 +83,17 @@ $tables = [
 
 echo "Loading " . count($tables) . " tables\n";
 
-// Truncating in one statement with CASCADE avoids ordering problems and makes
-// the script repeatable.
-$pg->exec('TRUNCATE ' . implode(', ', array_map(
-    static fn ($t) => '"' . $t . '"',
-    $tables
-)) . ' RESTART IDENTITY CASCADE');
+/*
+ * DELETE rather than TRUNCATE, deliberately. TRUNCATE is its own privilege
+ * and pacelab_app does not have it, because the application never truncates
+ * anything - granting it here to save a few milliseconds would widen what a
+ * defect in the running application could do. Deleting in reverse dependency
+ * order respects the foreign keys; the identity sequences are reset below in
+ * any case.
+ */
+foreach (array_reverse($tables) as $t) {
+    $pg->exec('DELETE FROM "' . $t . '"');
+}
 
 $loaded = [];
 foreach ($tables as $t) {
@@ -122,31 +127,13 @@ foreach ($tables as $t) {
 }
 
 /*
- * Identity sequences do not advance when ids are inserted explicitly, so the
- * next insert would collide with an existing row. Move each one past the
- * highest id now.
+ * Identity sequences are NOT reset here. setval() needs UPDATE on the
+ * sequence and pacelab_app has only USAGE, which is all nextval() requires.
+ * Run db/postgres/03_reset_sequences.sql as the superuser after this, or the
+ * next insert collides with an existing id.
  */
-echo "Resetting identity sequences\n";
-foreach ($tables as $t) {
-    $pk = $pg->query(
-        "SELECT a.attname FROM pg_index i
-         JOIN pg_attribute a ON a.attrelid = i.indrelid AND a.attnum = ANY(i.indkey)
-         WHERE i.indrelid = " . $pg->quote($t) . "::regclass AND i.indisprimary"
-    )->fetchColumn();
-    if ($pk === false || $pk === 'key') {
-        continue;
-    }
-    $seq = $pg->query(
-        "SELECT pg_get_serial_sequence(" . $pg->quote($t) . ", " . $pg->quote($pk) . ")"
-    )->fetchColumn();
-    if (!$seq) {
-        continue;
-    }
-    $pg->exec(
-        "SELECT setval(" . $pg->quote($seq) . ", "
-        . "COALESCE((SELECT MAX(\"$pk\") FROM \"$t\"), 0) + 1, false)"
-    );
-}
+echo "Sequences: run db/postgres/03_reset_sequences.sql as superuser
+";
 
 /*
  * Verify. Row counts first, then every row compared field by field.

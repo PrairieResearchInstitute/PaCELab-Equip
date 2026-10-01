@@ -25,6 +25,46 @@ if (!defined('LAB_DB_PATH')) {
 }
 
 /**
+ * Read .env into the environment, once.
+ *
+ * Values already present in the real environment win, so a server that sets
+ * PGPASSWORD properly is not overridden by a stale file. Absent .env this
+ * does nothing at all, which is why an installation that has never been
+ * migrated carries on unchanged.
+ *
+ * Deliberately tiny and dependency-free: this project has no package
+ * manager, by design.
+ */
+function load_dot_env(): void
+{
+    static $done = false;
+    if ($done) {
+        return;
+    }
+    $done = true;
+
+    $path = APP_ROOT . '/.env';
+    if (!is_readable($path)) {
+        return;
+    }
+    foreach (file($path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) as $line) {
+        $line = trim($line);
+        if ($line === '' || $line[0] === '#' || !str_contains($line, '=')) {
+            continue;
+        }
+        [$k, $v] = explode('=', $line, 2);
+        $k = trim($k);
+        $v = trim($v);
+        if (strlen($v) > 1 && ($v[0] === '"' || $v[0] === "'") && substr($v, -1) === $v[0]) {
+            $v = substr($v, 1, -1);
+        }
+        if ($k !== '' && getenv($k) === false) {
+            putenv($k . '=' . $v);
+        }
+    }
+}
+
+/**
  * Which driver this installation uses: 'sqlite' (the default) or 'pgsql'.
  *
  * Read once so a page cannot end up talking to two different databases.
@@ -33,6 +73,7 @@ function db_driver(): string
 {
     static $driver = null;
     if ($driver === null) {
+        load_dot_env();
         $driver = strtolower(trim((string) (getenv('PACELAB_DRIVER') ?: 'sqlite')));
         if ($driver !== 'pgsql') {
             $driver = 'sqlite';

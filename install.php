@@ -60,12 +60,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             foreach (seed_picklists() as [$list, $code, $label, $sort, $protected]) {
-                db_run('INSERT OR IGNORE INTO picklists (list_key, code, label, sort_order, active, protected)
-                        VALUES (?, ?, ?, ?, 1, ?)', [$list, $code, $label, $sort, $protected]);
+                db_insert_ignore(
+                    'picklists',
+                    ['list_key', 'code', 'label', 'sort_order', 'active', 'protected'],
+                    [$list, $code, $label, $sort, 1, $protected]
+                );
             }
 
             foreach (seed_settings($labName) as $key => $value) {
-                db_run('INSERT OR IGNORE INTO settings ("key", value) VALUES (?, ?)', [$key, $value]);
+                db_insert_ignore('settings', ['key', 'value'], [$key, $value]);
             }
 
             db_run(

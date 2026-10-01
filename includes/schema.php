@@ -289,7 +289,18 @@ function schema_migrate(): void
     foreach ($wanted as $table => $columns) {
         $have = [];
         try {
-            foreach (db_all('PRAGMA table_info(' . $table . ')') as $col) {
+            if (db_driver() === 'pgsql') {
+                $cols = db_all(
+                    'SELECT column_name AS name FROM information_schema.columns
+                     WHERE table_schema = ? AND table_name = ?',
+                    ['public', $table]
+                );
+            } else {
+                // PRAGMA takes no parameters, hence the concatenation; $table
+                // comes from the literal list above, never from input.
+                $cols = db_all('PRAGMA table_info(' . $table . ')');
+            }
+            foreach ($cols as $col) {
                 $have[$col['name']] = true;
             }
         } catch (Throwable $e) {

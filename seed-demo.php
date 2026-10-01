@@ -101,7 +101,13 @@ $notes   = [
 ];
 
 $equip     = db_all('SELECT * FROM equipment WHERE active = 1');
-$chargeable = db_all("SELECT * FROM grants WHERE active = 1 AND end_date >= date('now','-60 days')");
+// The cut-off is computed in PHP rather than in SQL: date('now', ...) is
+// SQLite only, and CURRENT_DATE - INTERVAL is Postgres only. A bound
+// parameter works on both.
+$chargeable = db_all(
+    "SELECT * FROM grants WHERE active = 1 AND end_date >= ?",
+    [date("Y-m-d", strtotime("-60 days"))]
+);
 
 if ($equip && $chargeable && (int) db_value('SELECT COUNT(*) FROM usage_records') === 0) {
     // Deterministic, so re-running gives the same laboratory rather than a new one.

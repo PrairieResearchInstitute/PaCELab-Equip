@@ -25,6 +25,23 @@ if (!defined('LAB_DB_PATH')) {
 }
 
 /**
+ * Which driver this installation uses: 'sqlite' (the default) or 'pgsql'.
+ *
+ * Read once so a page cannot end up talking to two different databases.
+ */
+function db_driver(): string
+{
+    static $driver = null;
+    if ($driver === null) {
+        $driver = strtolower(trim((string) (getenv('PACELAB_DRIVER') ?: 'sqlite')));
+        if ($driver !== 'pgsql') {
+            $driver = 'sqlite';
+        }
+    }
+    return $driver;
+}
+
+/**
  * The shared PDO handle. Opens the database on first call.
  */
 function db(): PDO
@@ -39,12 +56,40 @@ function db(): PDO
         @mkdir($dir, 0770, true);
     }
 
+    $options = [
+        PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
+        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+        PDO::ATTR_EMULATE_PREPARES   => false,
+    ];
+
+    /*
+     * Postgres is used when PACELAB_DRIVER says so, and only then. The
+     * default stays sqlite, so an installation that has not been migrated
+     * behaves exactly as before and nobody has to do anything.
+     *
+     * Credentials come from the environment, never from a committed file.
+     * See .env.example.
+     */
+    if (db_driver() === 'pgsql') {
+        $dsn = sprintf(
+            'pgsql:host=%s;port=%s;dbname=%s',
+            getenv('PGHOST') ?: '127.0.0.1',
+            getenv('PGPORT') ?: '5432',
+            getenv('PGDATABASE') ?: 'pacelab'
+        );
+        try {
+            $pdo = new PDO($dsn, getenv('PGUSER') ?: '', getenv('PGPASSWORD') ?: '', $options);
+        } catch (PDOException $e) {
+            http_response_code(500);
+            // The message is deliberately vague: a connection error can
+            // otherwise print the host and user to the browser.
+            exit('The database could not be reached. Check the service and the values in .env.');
+        }
+        return $pdo;
+    }
+
     try {
-        $pdo = new PDO('sqlite:' . LAB_DB_PATH, null, null, [
-            PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
-            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-            PDO::ATTR_EMULATE_PREPARES   => false,
-        ]);
+        $pdo = new PDO('sqlite:' . LAB_DB_PATH, null, null, $options);
     } catch (PDOException $e) {
         http_response_code(500);
         exit('The database could not be opened. Run check.php to test the server, then install.php to create the database.');
@@ -87,13 +132,41 @@ function db_value(string $sql, array $params = [])
     return $value === false ? null : $value;
 }
 
+/**
+ * Insert a row, doing nothing if it is already there.
+ *
+ * SQLite spells this INSERT OR IGNORE and Postgres spells it
+ * ON CONFLICT DO NOTHING. Both are supported, so seeding code does not have
+ * to know which database it is talking to.
+ */
+function db_insert_ignore(string $table, array $columns, array $values): void
+{
+    $cols = implode(', ', array_map(static fn ($c) => '"' . $c . '"', $columns));
+    $marks = implode(', ', array_fill(0, count($columns), '?'));
+    if (db_driver() === 'pgsql') {
+        db_run("INSERT INTO \"$table\" ($cols) VALUES ($marks) ON CONFLICT DO NOTHING", $values);
+        return;
+    }
+    db_run("INSERT OR IGNORE INTO \"$table\" ($cols) VALUES ($marks)", $values);
+}
+
 /** True when the schema has been created. */
 function db_installed(): bool
 {
-    if (!file_exists(LAB_DB_PATH)) {
+    // Only meaningful for SQLite, where the database is a file. A Postgres
+    // installation has no such file, and this guard previously made
+    // db_installed() always false there - which sends every visitor to the
+    // installer on a database that is already populated.
+    if (db_driver() === 'sqlite' && !file_exists(LAB_DB_PATH)) {
         return false;
     }
     try {
+        if (db_driver() === 'pgsql') {
+            return (bool) db_value(
+                "SELECT 1 FROM information_schema.tables
+                 WHERE table_schema = 'public' AND table_name = 'equipment'"
+            );
+        }
         return (bool) db_value("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'equipment'");
     } catch (Throwable $e) {
         return false;

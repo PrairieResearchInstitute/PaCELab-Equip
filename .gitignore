@@ -49,3 +49,15 @@ data/server.log
 data/php-stderr.log
 data/backup.log
 data/.installed
+
+# Local configuration and secrets. The .example file is the template.
+.env
+
+# SQLite runtime sidecars. The WAL holds real database pages - rows that
+# have not yet been checkpointed into the main file - so it is data, not
+# scratch. *.sqlite alone does not match them.
+*.sqlite-wal
+*.sqlite-shm
+*.sqlite-journal
+*.db-wal
+*.db-shm

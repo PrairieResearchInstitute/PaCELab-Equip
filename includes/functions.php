@@ -135,6 +135,14 @@ function set_setting(string $key, string $value): void
 {
     // INSERT OR REPLACE rather than an upsert clause, because upsert needs
     // SQLite 3.24 and campus hosts are not always current.
+    if (db_driver() === 'pgsql') {
+        db_run(
+            'INSERT INTO settings ("key", value) VALUES (?, ?)
+             ON CONFLICT ("key") DO UPDATE SET value = EXCLUDED.value',
+            [$key, $value]
+        );
+        return;
+    }
     db_run('INSERT OR REPLACE INTO settings ("key", value) VALUES (?, ?)', [$key, $value]);
 }
 

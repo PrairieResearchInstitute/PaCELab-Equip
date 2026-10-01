@@ -7,17 +7,17 @@ The application runs on SQLite by default and on Postgres when `.env` sets
 
 Run as the superuser, from the application root:
 
-    psql -U postgres -h 127.0.0.1 -f db/postgres/00_create_role_and_db.sql -v approle_password="'choose-one'"
-    psql -U postgres -h 127.0.0.1 -d pacelab -f db/postgres/01_schema.sql
-    psql -U postgres -h 127.0.0.1 -d pacelab -f db/postgres/02_grants.sql
+    psql -U postgres -h 127.0.0.1 -f Migration/01_create_role_and_db.sql -v approle_password="'choose-one'"
+    psql -U postgres -h 127.0.0.1 -d pacelab -f Migration/02_schema.sql
+    psql -U postgres -h 127.0.0.1 -d pacelab -f Migration/03_grants.sql
 
 Then copy `.env.example` to `.env` and fill in `PGPASSWORD`. `.env` is
 ignored by git and must never be committed.
 
 ## Moving the data across
 
-    tools/php/php.exe -c tools/php/php.ini -d extension_dir=tools/php/ext tools/migrate-to-postgres.php
-    psql -U postgres -h 127.0.0.1 -d pacelab -f db/postgres/03_reset_sequences.sql
+    tools/php/php.exe -c tools/php/php.ini -d extension_dir=tools/php/ext Migration/load-data.php
+    psql -U postgres -h 127.0.0.1 -d pacelab -f Migration/05_reset_sequences.sql
 
 The loader copies every row and then proves it: row counts per table, then
 every row compared field by field against the SQLite source. It opens the

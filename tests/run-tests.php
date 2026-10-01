@@ -31,9 +31,28 @@ if (PHP_SAPI !== 'cli') {
  * sqlite for the duration rather than trust whatever .env happens to say.
  *
  * Exercising the Postgres path needs its own throwaway database; see
- * db/postgres/README for why that is not this file's job.
+ * Migration/README.md for why that is not this file's job.
  */
-putenv('PACELAB_DRIVER=sqlite');
+if (getenv('PACELAB_TEST_DRIVER') === 'pgsql') {
+    /*
+     * Opt-in Postgres run. The database name must end in _test: these tests
+     * create, update and delete rows, and the whole reason the harness
+     * normally pins itself to sqlite is that a Postgres connection ignores
+     * LAB_DB_PATH and would otherwise reach the live database.
+     */
+    $target = (string) (getenv('PACELAB_TEST_PGDATABASE') ?: 'pacelab_test');
+    if (!str_ends_with($target, '_test')) {
+        fwrite(STDERR, "Refusing to run: PACELAB_TEST_PGDATABASE is '$target', which does not end in _test.
+");
+        exit(2);
+    }
+    putenv('PACELAB_DRIVER=pgsql');
+    putenv('PGDATABASE=' . $target);
+    fwrite(STDOUT, "Running against Postgres database '$target'.
+");
+} else {
+    putenv('PACELAB_DRIVER=sqlite');
+}
 
 $tempDb = sys_get_temp_dir() . '/lab-tests-' . getmypid() . '.sqlite';
 foreach (glob(sys_get_temp_dir() . '/lab-tests-*.sqlite*') ?: [] as $stale) {
@@ -91,18 +110,60 @@ function refuses(string $what, callable $fn): void
 // ---------------------------------------------------------------------------
 
 $pdo = db();
-foreach (schema_statements() as $sql) {
-    $pdo->exec($sql);
+if (db_driver() === 'pgsql') {
+    /*
+     * The schema is already there: pacelab_test is a TEMPLATE copy of the
+     * live database. schema_statements() is SQLite DDL and Postgres rejects
+     * it at AUTOINCREMENT, so clear the rows instead and let the seeding
+     * below rebuild the starting state.
+     *
+     * Reverse dependency order, because the application role has DELETE but
+     * deliberately not TRUNCATE.
+     */
+    $all = [
+        'units', 'labs', 'grants', 'equipment', 'lab_members', 'equipment_costs',
+        'export_batches', 'usage_records', 'reservations', 'email_log',
+        'admin_users', 'login_attempts', 'picklists', 'settings',
+    ];
+    foreach (array_reverse($all) as $t) {
+        $pdo->exec('DELETE FROM "' . $t . '"');
+    }
+    /*
+     * Restart every identity sequence at 1.
+     *
+     * The tests assume a brand-new database - acting_as() signs in as
+     * admin_user_id 1, for instance. SQLite gets a fresh file each run so
+     * that holds; Postgres reuses pacelab_test and deleting rows does not
+     * rewind a sequence, so without this the second run has no row with
+     * id 1 and a dozen tests fail for a reason that has nothing to do with
+     * the code under test.
+     *
+     * Possible only because 04_create_test_db.sql hands the test database
+     * to the application role. In the live database it still cannot alter
+     * anything.
+     */
+    foreach ($pdo->query(
+        "SELECT sequencename FROM pg_sequences WHERE schemaname = 'public'"
+    )->fetchAll(PDO::FETCH_COLUMN) as $seq) {
+        $pdo->exec('ALTER SEQUENCE public."' . $seq . '" RESTART WITH 1');
+    }
+} else {
+    foreach (schema_statements() as $sql) {
+        $pdo->exec($sql);
+    }
 }
 foreach (seed_units() as [$code, $name]) {
     db_run('INSERT INTO units (code, name, active) VALUES (?, ?, 1)', [$code, $name]);
 }
 foreach (seed_picklists() as [$list, $code, $label, $sort, $protected]) {
-    db_run('INSERT OR IGNORE INTO picklists (list_key, code, label, sort_order, active, protected)
-            VALUES (?, ?, ?, ?, 1, ?)', [$list, $code, $label, $sort, $protected]);
+    db_insert_ignore(
+        'picklists',
+        ['list_key', 'code', 'label', 'sort_order', 'active', 'protected'],
+        [$list, $code, $label, $sort, 1, $protected]
+    );
 }
 foreach (seed_settings('Test Installation') as $key => $value) {
-    db_run('INSERT OR IGNORE INTO settings ("key", value) VALUES (?, ?)', [$key, $value]);
+    db_insert_ignore('settings', ['key', 'value'], [$key, $value]);
 }
 
 function make_lab(string $code, string $name): int

@@ -103,7 +103,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $resetting = isset($_GET['reset']) ? db_one('SELECT * FROM admin_users WHERE user_id = ?', [(int) $_GET['reset']]) : null;
-$admins    = db_all('SELECT * FROM admin_users ORDER BY active DESC, username COLLATE NOCASE');
+$admins    = db_all('SELECT * FROM admin_users ORDER BY active DESC, lower(username)');
 
 admin_header('users', 'Administrators');
 ?>

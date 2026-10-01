@@ -115,7 +115,7 @@ $all   = db_all(
        FROM grants g
        LEFT JOIN units u ON u.unit_id = g.unit_id
       WHERE g.lab_id = ?
-      ORDER BY g.active DESC, g.display_label COLLATE NOCASE',
+      ORDER BY g.active DESC, lower(g.display_label)',
     [current_lab_id()]
 );
 $today = date('Y-m-d');

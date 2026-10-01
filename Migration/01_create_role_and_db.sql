@@ -1,7 +1,7 @@
 -- Run this ONCE as the postgres superuser, on the local development machine
 -- and again later on Radiant.
 --
---   psql -U postgres -h 127.0.0.1 -f db/postgres/00_create_role_and_db.sql \
+--   psql -U postgres -h 127.0.0.1 -f Migration/01_create_role_and_db.sql \
 --        -v approle_password="'choose-something'"
 --
 -- Replace the password. It is passed on the command line rather than written

@@ -33,7 +33,7 @@ $onNow = db_all(
     'SELECT r.*, e.name AS equipment_name FROM reservations r
        JOIN equipment e ON e.equipment_id = r.equipment_id
       WHERE e.lab_id = :lab AND r.start_datetime <= :now AND r.end_datetime > :now
-      ORDER BY e.name COLLATE NOCASE',
+      ORDER BY lower(e.name)',
     ['now' => $now, 'lab' => current_lab_id()]
 );
 

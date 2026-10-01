@@ -63,7 +63,7 @@ if (isset($_GET['view'])) {
                JOIN equipment e ON e.equipment_id = r.equipment_id
                JOIN grants    g ON g.grant_id     = r.grant_id
               WHERE r.export_batch_id = ?
-              ORDER BY g.cfopa, e.name COLLATE NOCASE, r.use_date',
+              ORDER BY g.cfopa, lower(e.name), r.use_date',
             [(int) $viewing['batch_id']]
         );
     }

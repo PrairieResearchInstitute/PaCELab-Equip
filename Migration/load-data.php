@@ -6,7 +6,7 @@
  * written into a file or passed on a command line.
  *
  *   tools\php\php.exe -c tools\php\php.ini -d extension_dir=tools\php\ext ^
- *       tools\migrate-to-postgres.php
+ *       Migration/load-data.php
  *
  * Safe to re-run: it truncates the Postgres tables first and never writes to
  * the SQLite database, which is opened read-only.
@@ -129,10 +129,10 @@ foreach ($tables as $t) {
 /*
  * Identity sequences are NOT reset here. setval() needs UPDATE on the
  * sequence and pacelab_app has only USAGE, which is all nextval() requires.
- * Run db/postgres/03_reset_sequences.sql as the superuser after this, or the
+ * Run Migration/05_reset_sequences.sql as the superuser after this, or the
  * next insert collides with an existing id.
  */
-echo "Sequences: run db/postgres/03_reset_sequences.sql as superuser
+echo "Sequences: run Migration/05_reset_sequences.sql as superuser
 ";
 
 /*

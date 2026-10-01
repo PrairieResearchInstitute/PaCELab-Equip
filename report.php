@@ -43,7 +43,7 @@ function charge_lines(string $start, string $end, bool $unexportedOnly): array
     if ($unexportedOnly) {
         $sql .= ' AND r.exported = 0';
     }
-    $sql .= ' ORDER BY g.cfopa, e.name COLLATE NOCASE, r.use_date, r.usage_id';
+    $sql .= ' ORDER BY g.cfopa, lower(e.name), r.use_date, r.usage_id';
 
     return db_all($sql, ['start' => $start, 'end' => $end, 'lab' => current_lab_id()]);
 }

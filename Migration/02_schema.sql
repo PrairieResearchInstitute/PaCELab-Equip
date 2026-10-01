@@ -2,7 +2,7 @@
 --
 -- Translated from the SQLite schema that shipped in data/lab.sqlite. The aim
 -- here is a faithful translation, not an improved one: anything that changes
--- how a value behaves is listed in db/postgres/NOTES.txt and left for a
+-- how a value behaves is listed in Migration/README.md and left for a
 -- separate, separately tested change. A migration that also alters semantics
 -- gives you no way to tell which half caused a difference.
 --

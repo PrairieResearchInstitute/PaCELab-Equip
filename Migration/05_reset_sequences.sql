@@ -1,6 +1,6 @@
--- Run as the superuser AFTER loading data with tools/migrate-to-postgres.php.
+-- Run as the superuser AFTER loading data with Migration/load-data.php.
 --
---   psql -U postgres -h 127.0.0.1 -d pacelab -f db/postgres/03_reset_sequences.sql
+--   psql -U postgres -h 127.0.0.1 -d pacelab -f Migration/05_reset_sequences.sql
 --
 -- Rows are loaded with their original ids so that every foreign key still
 -- points where it did. Identity sequences do not advance when an id is

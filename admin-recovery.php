@@ -68,7 +68,7 @@ function ask_password(): string
 /** Print the administrator table. */
 function show_admins(): void
 {
-    $admins = db_all('SELECT * FROM admin_users ORDER BY active DESC, username COLLATE NOCASE');
+    $admins = db_all('SELECT * FROM admin_users ORDER BY active DESC, lower(username)');
     if (!$admins) {
         echo "There are no administrator accounts at all. Create one:\n";
         echo "    php admin-recovery.php add <username> \"Display Name\"\n";

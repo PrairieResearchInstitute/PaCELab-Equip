@@ -132,7 +132,7 @@ $all = db_all(
                JOIN equipment e2 ON e2.equipment_id = r.equipment_id
               WHERE e2.lab_id = l.lab_id AND r.voided = 0) AS charges
        FROM labs l
-      ORDER BY l.active DESC, l.name COLLATE NOCASE'
+      ORDER BY l.active DESC, lower(l.name)'
 );
 
 $units   = db_all('SELECT * FROM units WHERE active = 1 ORDER BY code');

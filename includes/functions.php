@@ -798,7 +798,7 @@ function compose_lab_group_email(array $item, string $kind): array
         "SELECT name, location, rate, rate_unit FROM equipment
           WHERE lab_id = ? AND active = 1 AND status = 'available'
             AND equip_class = ? AND equipment_id <> ?
-          ORDER BY name COLLATE NOCASE LIMIT 5",
+          ORDER BY lower(name) LIMIT 5",
         [(int) $item['lab_id'], $item['equip_class'], $id]
     );
 
@@ -899,7 +899,7 @@ function person_key(?string $name): string
 function labs(bool $activeOnly = true): array
 {
     return db_all(
-        'SELECT * FROM labs' . ($activeOnly ? ' WHERE active = 1' : '') . ' ORDER BY name COLLATE NOCASE'
+        'SELECT * FROM labs' . ($activeOnly ? ' WHERE active = 1' : '') . ' ORDER BY lower(name)'
     );
 }
 
@@ -932,7 +932,7 @@ function labs_for_person(?string $name = null): array
         'SELECT l.* FROM labs l
            JOIN lab_members m ON m.lab_id = l.lab_id
           WHERE l.active = 1 AND m.person_key = ?
-          ORDER BY l.name COLLATE NOCASE',
+          ORDER BY lower(l.name)',
         [$key]
     );
 }
@@ -1243,7 +1243,7 @@ function equipment_alerts(string $base = ''): array
         // --- Warranty and service contracts ----------------------------------
         $cover = db_one(
             "SELECT * FROM equipment_costs
-              WHERE equipment_id = ? AND covers_end IS NOT NULL AND covers_end <> ''
+              WHERE equipment_id = ? AND covers_end IS NOT NULL
                 AND category IN ('warranty', 'service_contract')
               ORDER BY covers_end DESC LIMIT 1",
             [$id]
@@ -1401,7 +1401,7 @@ function lab_equipment(bool $activeOnly = true): array
     return db_all(
         'SELECT * FROM equipment WHERE lab_id = ?'
         . ($activeOnly ? ' AND active = 1' : '')
-        . ' ORDER BY active DESC, name COLLATE NOCASE',
+        . ' ORDER BY active DESC, lower(name)',
         [current_lab_id()]
     );
 }
@@ -1442,7 +1442,7 @@ function lab_grants(bool $activeOnly = true): array
            FROM grants g
            LEFT JOIN units u ON u.unit_id = g.unit_id
           WHERE g.lab_id = ?' . ($activeOnly ? ' AND g.active = 1' : '') . '
-          ORDER BY g.active DESC, g.display_label COLLATE NOCASE',
+          ORDER BY g.active DESC, lower(g.display_label)',
         [current_lab_id()]
     );
 }
@@ -1469,9 +1469,9 @@ function grants_for_date(string $useDate): array
            LEFT JOIN units u ON u.unit_id = g.unit_id
           WHERE g.lab_id = :lab
             AND g.active = 1
-            AND (g.start_date IS NULL OR g.start_date = \'\' OR g.start_date <= :d)
-            AND (g.end_date   IS NULL OR g.end_date   = \'\' OR g.end_date   >= :d)
-          ORDER BY g.display_label COLLATE NOCASE',
+              AND (g.start_date IS NULL OR g.start_date <= :d)
+              AND (g.end_date   IS NULL OR g.end_date   >= :d)
+          ORDER BY lower(g.display_label)',
         ['d' => $useDate, 'lab' => current_lab_id()]
     );
 }
@@ -1496,7 +1496,7 @@ function picklist(string $listKey, bool $activeOnly = true): array
     if (!isset($cache[$cacheKey])) {
         $sql = 'SELECT code, label FROM picklists WHERE list_key = ?'
              . ($activeOnly ? ' AND active = 1' : '')
-             . ' ORDER BY sort_order, label COLLATE NOCASE';
+             . ' ORDER BY sort_order, lower(label)';
         $rows = [];
         try {
             $rows = db_all($sql, [$listKey]);
